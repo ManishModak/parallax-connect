@@ -11,13 +11,34 @@ class ChatRepository {
 
   ChatRepository(this._dio, this._configStorage);
 
+  /// Test connection to the server
+  Future<bool> testConnection() async {
+    final baseUrl = _configStorage.getBaseUrl();
+    if (baseUrl == null) return false;
+
+    try {
+      final response = await _dio.get(
+        '$baseUrl/',
+        options: Options(
+          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
+        ),
+      );
+
+      return response.statusCode == 200 && response.data['status'] == 'online';
+    } catch (e) {
+      logger.e('Connection test failed', error: e);
+      return false;
+    }
+  }
+
   Future<String> generateText(String prompt) async {
     final baseUrl = _configStorage.getBaseUrl();
     if (baseUrl == null) throw Exception('No Base URL configured');
 
     try {
       final response = await _dio.post(
-        '$baseUrl/generate',
+        '$baseUrl/chat',
         data: {'prompt': prompt},
       );
 
@@ -34,7 +55,7 @@ class ChatRepository {
 
     try {
       final response = await _dio.post(
-        '$baseUrl/analyze',
+        '$baseUrl/vision',
         data: {'prompt': prompt, 'image': imageBase64},
       );
 
