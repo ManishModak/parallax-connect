@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:go_router/go_router.dart';
@@ -28,6 +29,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   final _passwordController = TextEditingController();
   bool _isLocal = false;
   bool _isConnecting = false;
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -50,6 +52,40 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
         _isLocal = storage.getIsLocal();
         _passwordController.text = storage.getPassword() ?? '';
       });
+    }
+  }
+
+  Future<void> _scanQrCode() async {
+    try {
+      final scannedValue = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.black,
+        builder: (_) => const _QrScannerSheet(),
+      );
+
+      if (!mounted || scannedValue == null) return;
+      final trimmed = scannedValue.trim();
+      if (trimmed.isEmpty) return;
+
+      setState(() {
+        _urlController.text = trimmed;
+      });
+      _urlController.selection = TextSelection.fromPosition(
+        TextPosition(offset: trimmed.length),
+      );
+      _showSuccessSnackBar('URL scanned from QR.');
+    } on PlatformException catch (error, stackTrace) {
+      developer.log(
+        'Failed to scan QR code',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      _showErrorSnackBar(
+        'Unable to scan QR code. Paste URL manually.',
+        LucideIcons.alertTriangle,
+      );
     }
   }
 
@@ -149,7 +185,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
         ),
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
@@ -230,6 +266,58 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
               const SizedBox(height: 8),
 
               // Input Field
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Server URL or Address',
+                      style: GoogleFonts.inter(
+                        color: AppColors.secondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Tooltip(
+                    message: 'Scan QR host URL',
+                    child: IconButton(
+                      icon: const Icon(LucideIcons.scanLine),
+                      color: AppColors.secondary,
+                      onPressed: _scanQrCode,
+                    ),
+                  ),
+                  Tooltip(
+                    message: 'Paste from clipboard',
+                    child: IconButton(
+                      icon: const Icon(LucideIcons.clipboardPaste),
+                      color: AppColors.secondary,
+                      onPressed: () async {
+                        final clipboard = await Clipboard.getData(
+                          Clipboard.kTextPlain,
+                        );
+                        final text = clipboard?.text?.trim();
+                        if (text == null || text.isEmpty) {
+                          if (!mounted) return;
+                          _showErrorSnackBar(
+                            'Clipboard is empty.',
+                            LucideIcons.clipboardX,
+                          );
+                          return;
+                        }
+                        setState(() {
+                          _urlController.text = text;
+                        });
+                        _urlController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: _urlController.text.length),
+                        );
+                        if (!mounted) return;
+                        _showSuccessSnackBar('URL pasted from clipboard.');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _urlController,
                 style: GoogleFonts.sourceCodePro(color: AppColors.primary),
@@ -266,14 +354,22 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
 
               const SizedBox(height: 16),
 
+              Text(
+                'Password (optional)',
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _passwordController,
                 style: GoogleFonts.inter(color: AppColors.primary),
-                obscureText: true,
+                obscureText: !_isPasswordVisible,
                 enableSuggestions: false,
                 autocorrect: false,
                 decoration: InputDecoration(
-                  labelText: 'Password (optional)',
                   hintText: 'Leave empty if not set',
                   hintStyle: GoogleFonts.inter(color: AppColors.accent),
                   filled: true,
@@ -289,6 +385,20 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   prefixIcon: const Icon(
                     LucideIcons.lock,
                     color: AppColors.secondary,
+                  ),
+                  suffixIcon: IconButton(
+                    tooltip: _isPasswordVisible
+                        ? 'Hide password'
+                        : 'Show password',
+                    icon: Icon(
+                      _isPasswordVisible ? LucideIcons.eyeOff : LucideIcons.eye,
+                    ),
+                    color: AppColors.secondary,
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
                   ),
                 ),
               ),
@@ -484,7 +594,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
 
               const SizedBox(height: 12),
 
-              const Spacer(),
+              const SizedBox(height: 24),
 
               // Connect Button
               SizedBox(
@@ -536,6 +646,105 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
               const SizedBox(height: 24),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QrScannerSheet extends StatefulWidget {
+  const _QrScannerSheet();
+
+  @override
+  State<_QrScannerSheet> createState() => _QrScannerSheetState();
+}
+
+class _QrScannerSheetState extends State<_QrScannerSheet> {
+  final MobileScannerController _controller = MobileScannerController();
+  bool _hasDetected = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height;
+    return SafeArea(
+      child: SizedBox(
+        height: height * 0.75,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Text(
+                    'Scan Server QR',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Close scanner',
+                    icon: const Icon(LucideIcons.x, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Align the QR code within the frame to capture the server URL.',
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Stack(
+                children: [
+                  MobileScanner(
+                    controller: _controller,
+                    onDetect: (capture) {
+                      if (_hasDetected) return;
+                      for (final barcode in capture.barcodes) {
+                        final rawValue = barcode.rawValue;
+                        if (rawValue != null && rawValue.isNotEmpty) {
+                          setState(() {
+                            _hasDetected = true;
+                          });
+                          Navigator.of(context).pop(rawValue);
+                          break;
+                        }
+                      }
+                    },
+                  ),
+                  Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 220,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.7),
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
         ),
       ),
     );

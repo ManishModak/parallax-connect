@@ -127,6 +127,12 @@ def home():
     return {"status": "online", "mode": SERVER_MODE, "device": "Server Node"}
 
 
+@app.get("/healthz")
+def health_check():
+    """Public health check that doesn't require a password."""
+    return {"status": "ok"}
+
+
 class ChatRequest(BaseModel):
     prompt: str
 
