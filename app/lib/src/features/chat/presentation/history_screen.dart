@@ -32,6 +32,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   // Mock data - categorized by time
+  // TODO: Replace with real data from ChatHistoryStorage/Repository
   final Map<String, List<Map<String, String>>> _categorizedChats = {
     'Today': [
       {'title': 'Project Planning', 'time': '2 mins ago'},

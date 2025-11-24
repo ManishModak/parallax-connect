@@ -88,6 +88,7 @@ class ChatController extends Notifier<ChatState> {
   }
 
   Future<void> startNewChat() async {
+    // TODO: Archive current chat session before clearing
     // In a real app, we would archive the current session first
     await clearHistory();
   }
