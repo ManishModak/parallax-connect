@@ -48,14 +48,11 @@
 3. **Connection Manager:** A settings page with a toggle:
     * 🔘 **Remote Mode** (Input: Ngrok URL)
     * 🔘 **Local Mode** (Input: 192.168.X.X)
-4. **UI Detail:** A "Powered by Gradient Parallax" badge/status indicator to impress judges.
+| :--- | :--- | :--- |
+| **Connection** | Internet (Tunnel) | Wi-Fi (LAN) |
+| **Range** | Anywhere in the world | Same Wi-Fi Network |
+| **Speed** | Slower (Latency) | Blazing Fast |
+| **Setup** | Requires Ngrok Token | Plug & Play |
+| **Free Limit** | 1GB Bandwidth / Month | Unlimited |
 
----
-
-## 📅 The 7-Day Sprint Plan
-
-* **Day 1:** Setup Friend's RTX 4060 remotely. Install Parallax, Moondream, Ngrok. Create `server.py` (FastAPI).
-* **Day 2-4:** Build Flutter UI (Chat, Camera, Settings Toggle).
-* **Day 5:** Integration Test (Send image from phone -> Get text from Parallax).
-* **Day 6:** **Filming.** (Scenes: Remote usage in public, cutting internet, switching to local usage).
-* **Day 7:** Edit & Submit.
+**Note:** The app works seamlessly with both. Just scan the QR code, and it figures it out.

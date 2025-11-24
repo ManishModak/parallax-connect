@@ -1,23 +1,128 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from pydantic import BaseModel
+import getpass
+import socket
 import uvicorn
 import httpx
+import qrcode
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    UploadFile,
+)
+from pydantic import BaseModel
+from pyngrok import ngrok
+from typing import Optional
 
 # --- CONFIGURATION ---
 # Options: "MOCK", "PROXY"
 # - MOCK: Returns dummy data (for UI Dev).
 # - PROXY: Forwards requests to running Parallax Service (localhost:3002).
 SERVER_MODE = "MOCK"
+PASSWORD: Optional[str] = None
 
 # Parallax Service Endpoint (OpenAI Compatible)
 PARALLAX_SERVICE_URL = "http://localhost:3002/v1/chat/completions"
 
 app = FastAPI()
 
-print(f"🚀 Server Starting... MODE: {SERVER_MODE}")
+
+def setup_password():
+    """Prompt user for optional password protection."""
+    global PASSWORD
+
+    try:
+        choice = input("\n🔒 Set a password for this server? (y/n): ").strip().lower()
+    except EOFError:
+        choice = "n"
+
+    if choice == "y":
+        password = getpass.getpass("Enter password: ").strip()
+        if password:
+            PASSWORD = password
+            print("✅ Password protection enabled\n")
+        else:
+            PASSWORD = None
+            print("⚠️  Empty password. Server remains open.\n")
+    else:
+        PASSWORD = None
+        print("⚠️  No password set. Server is open.\n")
 
 
-@app.get("/")
+async def check_password(x_password: Optional[str] = Header(default=None)):
+    if PASSWORD and x_password != PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    return True
+
+
+def get_local_ip():
+    """Get the local IP address of this machine."""
+    try:
+        # Connect to an external server (doesn't actually send data) to get the interface IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def print_qr(url):
+    """Generate and print a QR code for the given URL to the terminal."""
+    qr = qrcode.QRCode(version=1, box_size=1, border=1)
+    qr.add_data(url)
+    qr.make(fit=True)
+    qr.print_ascii(invert=True)
+
+
+@app.on_event("startup")
+async def startup_event():
+    print(f"\n🚀 Server Starting... MODE: {SERVER_MODE}")
+    setup_password()
+
+    # 1. Get Local URL
+    local_ip = get_local_ip()
+    local_url = f"http://{local_ip}:8000"
+
+    # 2. Try to start Ngrok Tunnel
+    public_url = None
+    try:
+        # pyngrok automatically loads the auth token from the config file
+        http_tunnel = ngrok.connect(8000)
+        public_url = http_tunnel.public_url
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "authtoken" in error_msg or "authentication" in error_msg:
+            print("⚠️ Ngrok Auth Token not found. Skipping Cloud Tunnel.")
+            print("   Run: ngrok config add-authtoken <TOKEN> to enable Cloud Mode.")
+        else:
+            print(f"⚠️ Could not start Ngrok: {e}")
+
+    # 3. Display Connection Info & QR Code
+    print("\n" + "=" * 50)
+    print("📲 CONNECT YOUR APP")
+    print("=" * 50)
+
+    if public_url:
+        print(f"\n🌍 CLOUD MODE (Recommended)")
+        print(f"URL: {public_url}")
+        print("Scan this QR code to connect:\n")
+        print_qr(public_url)
+        print("\n" + "-" * 50)
+
+    print(f"\n🏠 LOCAL MODE (Same Wi-Fi only)")
+    print(f"URL: {local_url}")
+    print("Scan this QR code to connect:\n")
+    print_qr(local_url)
+
+    print("=" * 50 + "\n")
+
+
+@app.get("/", dependencies=[Depends(check_password)])
 def home():
     return {"status": "online", "mode": SERVER_MODE, "device": "Server Node"}
 
@@ -26,7 +131,7 @@ class ChatRequest(BaseModel):
     prompt: str
 
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(check_password)])
 async def chat_endpoint(request: ChatRequest):
     print(f"📝 Text Request: {request.prompt}")
 
@@ -66,7 +171,7 @@ async def chat_endpoint(request: ChatRequest):
             raise HTTPException(status_code=500, detail=f"Remote Service Error: {e}")
 
 
-@app.post("/vision")
+@app.post("/vision", dependencies=[Depends(check_password)])
 async def vision_endpoint(image: UploadFile = File(...), prompt: str = Form(...)):
     print(f"📸 Vision Request: {prompt}")
 

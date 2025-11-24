@@ -11,6 +11,14 @@ class ChatRepository {
 
   ChatRepository(this._dio, this._configStorage);
 
+  Map<String, String>? _buildPasswordHeader() {
+    final password = _configStorage.getPassword();
+    if (password == null || password.isEmpty) {
+      return null;
+    }
+    return {'x-password': password};
+  }
+
   /// Test connection to the server
   Future<bool> testConnection() async {
     final baseUrl = _configStorage.getBaseUrl();
@@ -22,6 +30,7 @@ class ChatRepository {
         options: Options(
           receiveTimeout: const Duration(seconds: 5),
           sendTimeout: const Duration(seconds: 5),
+          headers: _buildPasswordHeader(),
         ),
       );
 
@@ -40,6 +49,7 @@ class ChatRepository {
       final response = await _dio.post(
         '$baseUrl/chat',
         data: {'prompt': prompt},
+        options: Options(headers: _buildPasswordHeader()),
       );
 
       return response.data['response'] as String;
@@ -57,6 +67,7 @@ class ChatRepository {
       final response = await _dio.post(
         '$baseUrl/vision',
         data: {'prompt': prompt, 'image': imageBase64},
+        options: Options(headers: _buildPasswordHeader()),
       );
 
       return response.data['response'] as String;

@@ -1,5 +1,9 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +25,7 @@ class ConfigScreen extends ConsumerStatefulWidget {
 class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   final _formKey = GlobalKey<FormState>();
   final _urlController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLocal = false;
   bool _isConnecting = false;
 
@@ -30,12 +35,20 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
     _loadExistingConfig();
   }
 
+  @override
+  void dispose() {
+    _urlController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadExistingConfig() async {
     final storage = ref.read(configStorageProvider);
     if (storage.hasConfig()) {
       setState(() {
         _urlController.text = storage.getBaseUrl() ?? '';
         _isLocal = storage.getIsLocal();
+        _passwordController.text = storage.getPassword() ?? '';
       });
     }
   }
@@ -65,6 +78,9 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       await storage.saveConfig(
         baseUrl: _urlController.text.trim(),
         isLocal: _isLocal,
+        password: _passwordController.text.trim().isEmpty
+            ? null
+            : _passwordController.text.trim(),
       );
 
       // Test connection
@@ -118,56 +134,6 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
         backgroundColor: AppColors.error,
         duration: const Duration(seconds: 4),
       ),
-    );
-  }
-
-  Widget _buildInstructionStep(String number, String title, String detail) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Center(
-            child: Text(
-              number,
-              style: GoogleFonts.inter(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.inter(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                detail,
-                style: GoogleFonts.sourceCodePro(
-                  color: AppColors.secondary,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -298,6 +264,35 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                 },
               ),
 
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _passwordController,
+                style: GoogleFonts.inter(color: AppColors.primary),
+                obscureText: true,
+                enableSuggestions: false,
+                autocorrect: false,
+                decoration: InputDecoration(
+                  labelText: 'Password (optional)',
+                  hintText: 'Leave empty if not set',
+                  hintStyle: GoogleFonts.inter(color: AppColors.accent),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.secondary),
+                  ),
+                  prefixIcon: const Icon(
+                    LucideIcons.lock,
+                    color: AppColors.secondary,
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // Instructions Card
@@ -334,122 +329,160 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (_isLocal) ...[
-                      _buildInstructionStep(
-                        '0',
-                        'Get server.py from GitHub',
-                        'github.com/ManishModak/parallax-connect',
+                    Text(
+                      'To connect, set up the server on your computer first.',
+                      style: GoogleFonts.inter(
+                        color: AppColors.secondary,
+                        fontSize: 12,
                       ),
-                      const SizedBox(height: 8),
-                      _buildInstructionStep(
-                        '1',
-                        'Run python server.py on the server device',
-                        'python server.py',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInstructionStep(
-                        '2',
-                        'Find server\'s local IP address',
-                        'Windows: ipconfig → IPv4 | Mac/Linux: ifconfig or ip a',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInstructionStep(
-                        '3',
-                        'Enter http://<SERVER_IP>:8000 above',
-                        'Both devices must be on same network (WiFi)',
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              LucideIcons.lightbulb,
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final url = Uri.parse(
+                                'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
+                              );
+                              try {
+                                final launched = await launchUrl(
+                                  url,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                                if (!launched && mounted) {
+                                  _showErrorSnackBar(
+                                    'Unable to open the setup guide. Copy the URL manually.',
+                                    LucideIcons.alertTriangle,
+                                  );
+                                }
+                              } on PlatformException catch (error, stackTrace) {
+                                developer.log(
+                                  'Failed to launch setup guide',
+                                  error: error,
+                                  stackTrace: stackTrace,
+                                );
+                                if (!mounted) return;
+                                _showErrorSnackBar(
+                                  'Unable to open the setup guide. Copy the URL manually.',
+                                  LucideIcons.alertTriangle,
+                                );
+                              }
+                            },
+                            icon: const Icon(
+                              LucideIcons.externalLink,
                               size: 16,
-                              color: Colors.blue.shade300,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Tip: Use a third device as WiFi hotspot to connect both',
-                                style: GoogleFonts.inter(
-                                  color: Colors.blue.shade200,
-                                  fontSize: 11,
-                                ),
+                            label: Text(
+                              'View Server Setup Guide',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ] else ...[
-                      _buildInstructionStep(
-                        '0',
-                        'Get server.py from GitHub',
-                        'github.com/ManishModak/parallax-connect',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInstructionStep(
-                        '1',
-                        'Run python server.py on your computer',
-                        'python server.py',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInstructionStep(
-                        '2',
-                        'In another terminal: ngrok http 8000',
-                        'Copy the forwarding URL from ngrok',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInstructionStep(
-                        '3',
-                        'Paste the ngrok URL above',
-                        'Format: https://xxxx.ngrok-free.app',
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              LucideIcons.info,
-                              size: 16,
-                              color: Colors.orange.shade300,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: AppColors.primary),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Internet connection required on both devices',
-                                style: GoogleFonts.inter(
-                                  color: Colors.orange.shade200,
-                                  fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Tooltip(
+                          message: 'Copy guide link',
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                const ClipboardData(
+                                  text:
+                                      'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
                                 ),
+                              );
+                              if (!mounted) return;
+                              _showSuccessSnackBar(
+                                'Server setup link copied to clipboard.',
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: AppColors.primary),
+                              minimumSize: const Size(48, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
                             ),
-                          ],
+                            child: const Icon(LucideIcons.copy),
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'After the server starts, copy the URL shown in the terminal '
+                      'or scan the QR code from that terminal to paste it here.',
+                      style: GoogleFonts.inter(
+                        color: AppColors.secondary,
+                        fontSize: 12,
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isLocal
+                            ? Colors.blue.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _isLocal ? LucideIcons.wifi : LucideIcons.globe,
+                                size: 16,
+                                color: _isLocal
+                                    ? Colors.blue.shade300
+                                    : Colors.orange.shade300,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _isLocal ? 'Local Mode' : 'Cloud Mode',
+                                style: GoogleFonts.inter(
+                                  color: _isLocal
+                                      ? Colors.blue.shade300
+                                      : Colors.orange.shade300,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isLocal
+                                ? 'Both devices must be on the same Wi-Fi.'
+                                : 'Internet connection required on both devices.',
+                            style: GoogleFonts.inter(
+                              color: _isLocal
+                                  ? Colors.blue.shade200
+                                  : Colors.orange.shade200,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
 
               const SizedBox(height: 12),
-              Text(
-                'Check README.md for detailed setup instructions.',
-                style: GoogleFonts.inter(
-                  color: AppColors.secondary,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
 
               const Spacer(),
 

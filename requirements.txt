@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+python-multipart
+pyngrok
+qrcode[pil]
+httpx
