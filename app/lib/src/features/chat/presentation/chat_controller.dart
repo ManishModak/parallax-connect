@@ -93,7 +93,16 @@ class ChatController extends Notifier<ChatState> {
   }
 
   void togglePrivateMode() {
-    state = state.copyWith(isPrivateMode: !state.isPrivateMode);
+    final newMode = !state.isPrivateMode;
+    state = state.copyWith(
+      isPrivateMode: newMode,
+      messages: newMode ? [] : state.messages, // Clear messages when enabling
+      error: null,
+    );
+  }
+
+  void disablePrivateMode() {
+    state = state.copyWith(isPrivateMode: false, messages: [], error: null);
   }
 
   Future<void> sendMessage(

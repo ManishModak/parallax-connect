@@ -76,7 +76,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             icon: SvgPicture.asset(
-              'assets/icons/new_chat.svg',
+              // Show private chat icon when no messages and not in private mode
+              // Show active private chat icon when in private mode
+              // Show new chat icon otherwise
+              chatState.messages.isEmpty && !chatState.isPrivateMode
+                  ? 'assets/icons/private_chat.svg'
+                  : chatState.isPrivateMode
+                  ? 'assets/icons/private_chat_active.svg'
+                  : 'assets/icons/new_chat.svg',
               width: 22,
               height: 22,
               colorFilter: ColorFilter.mode(
@@ -84,8 +91,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 BlendMode.srcIn,
               ),
             ),
-            tooltip: 'Start New Chat',
-            onPressed: () => chatController.startNewChat(),
+            tooltip: chatState.messages.isEmpty && !chatState.isPrivateMode
+                ? 'Start Private Chat'
+                : chatState.isPrivateMode
+                ? 'Exit Private Chat'
+                : 'Start New Chat',
+            onPressed: () {
+              if (chatState.messages.isEmpty && !chatState.isPrivateMode) {
+                // Enable private mode
+                chatController.togglePrivateMode();
+              } else if (chatState.isPrivateMode) {
+                // Disable private mode and clear messages
+                chatController.disablePrivateMode();
+              } else {
+                // Start new chat
+                chatController.startNewChat();
+              }
+            },
           ),
         ],
       ),
@@ -97,19 +119,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          LucideIcons.messageSquare,
-                          size: 48,
-                          color: AppColors.accent,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Start a conversation',
-                          style: GoogleFonts.inter(
-                            color: AppColors.secondary,
-                            fontSize: 16,
+                        if (chatState.isPrivateMode) ...[
+                          // Private chat empty state
+                          SvgPicture.asset(
+                            'assets/icons/private_chat.svg',
+                            width: 48,
+                            height: 48,
+                            colorFilter: ColorFilter.mode(
+                              AppColors.accent,
+                              BlendMode.srcIn,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Private Chat',
+                            style: GoogleFonts.inter(
+                              color: AppColors.primaryMildVariant,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40),
+                            child: Text(
+                              'This chat won\'t appear in history and will be fully erased',
+                              style: GoogleFonts.inter(
+                                color: AppColors.secondary,
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ] else ...[
+                          // Normal empty state
+                          const Icon(
+                            LucideIcons.messageSquare,
+                            size: 48,
+                            color: AppColors.accent,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Start a conversation',
+                            style: GoogleFonts.inter(
+                              color: AppColors.secondary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   )
