@@ -18,7 +18,10 @@ class ChatHistoryStorage {
   }
 
   List<Map<String, dynamic>> getHistory() {
-    return _box.values.cast<Map<String, dynamic>>().toList();
+    // Fix type casting issue - explicitly convert each item
+    return _box.values
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
   }
 
   Future<void> clearHistory() async {

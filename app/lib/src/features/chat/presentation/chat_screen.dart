@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../config/presentation/config_screen.dart';
+import '../../../core/router/app_router.dart';
 import 'chat_controller.dart';
-import 'widgets/chat_bubble.dart';
-import 'widgets/chat_input.dart';
+import 'widgets/chat_message_bubble.dart';
+import 'widgets/chat_input_area.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -50,36 +53,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background.withOpacity(0.8),
+        backgroundColor: AppColors.background,
         elevation: 0,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/gradient_logo.png',
-              width: 24,
-              height: 24,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Parallax',
-              style: GoogleFonts.inter(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
+        leading: IconButton(
+          icon: SvgPicture.asset(
+            'assets/icons/drawer.svg',
+            width: 24,
+            height: 24,
+            colorFilter: ColorFilter.mode(AppColors.secondary, BlendMode.srcIn),
+          ),
+          onPressed: () => context.push(AppRoutes.history),
         ),
+        title: Text(
+          'Parallax Connect',
+          style: GoogleFonts.inter(
+            color: AppColors.primaryMildVariant,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.settings, color: AppColors.secondary),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const ConfigScreen()));
-            },
+            icon: SvgPicture.asset(
+              'assets/icons/new_chat.svg',
+              width: 22,
+              height: 22,
+              colorFilter: ColorFilter.mode(
+                AppColors.secondary,
+                BlendMode.srcIn,
+              ),
+            ),
+            tooltip: 'Start New Chat',
+            onPressed: () => chatController.startNewChat(),
           ),
         ],
       ),
@@ -118,10 +124,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             index,
                           ) {
                             final message = chatState.messages[index];
-                            return MessageBubble(message: message);
+                            return ChatMessageBubble(message: message);
                           }, childCount: chatState.messages.length),
                         ),
                       ),
+                      if (chatState.isLoading)
+                        const SliverToBoxAdapter(
+                          child: ChatMessageBubble(isShimmer: true),
+                        ),
                     ],
                   ),
           ),
@@ -149,9 +159,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
             ),
-          ChatInput(
-            onSubmitted: chatController.sendMessage,
+          ChatInputArea(
             isLoading: chatState.isLoading,
+            onSubmitted: (text, attachmentPaths) {
+              ref
+                  .read(chatControllerProvider.notifier)
+                  .sendMessage(text, attachmentPaths: attachmentPaths);
+            },
+            onCameraTap: () async {
+              final picker = ImagePicker();
+              final XFile? image = await picker.pickImage(
+                source: ImageSource.camera,
+              );
+              return image?.path;
+            },
+            onGalleryTap: () async {
+              final picker = ImagePicker();
+              final List<XFile> images = await picker.pickMultipleMedia();
+              return images.map((img) => img.path).toList();
+            },
+            onFileTap: () async {
+              final result = await FilePicker.platform.pickFiles(
+                allowMultiple: true,
+              );
+              if (result != null) {
+                return result.files
+                    .where((file) => file.path != null)
+                    .map((file) => file.path!)
+                    .toList();
+              }
+              return [];
+            },
           ),
         ],
       ),

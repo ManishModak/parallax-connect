@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/router/app_router.dart';
+import '../../../core/services/connectivity_service.dart';
 import '../../../core/storage/config_storage.dart';
-import '../../chat/presentation/chat_screen.dart';
 
 class ConfigScreen extends ConsumerStatefulWidget {
   const ConfigScreen({super.key});
@@ -37,6 +40,34 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
 
   Future<void> _saveAndConnect() async {
     if (_formKey.currentState!.validate()) {
+      // Check connectivity for cloud mode
+      if (!_isLocal) {
+        final connectivityService = ref.read(connectivityServiceProvider);
+        final hasInternet = await connectivityService.hasInternetConnection;
+
+        if (!hasInternet) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(LucideIcons.wifiOff, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'No internet connection. Cloud mode requires an active internet connection.',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+      }
+
       final storage = ref.read(configStorageProvider);
       await storage.saveConfig(
         baseUrl: _urlController.text.trim(),
@@ -44,9 +75,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       );
 
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const ChatScreen()));
+      context.go(AppRoutes.chat);
     }
   }
 
@@ -138,16 +167,6 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       ),
                     ),
                   ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              Text(
-                _isLocal ? 'Local IP Address' : 'Ngrok URL',
-                style: GoogleFonts.inter(
-                  color: AppColors.secondary,
-                  fontSize: 14,
                 ),
               ),
               const SizedBox(height: 8),
