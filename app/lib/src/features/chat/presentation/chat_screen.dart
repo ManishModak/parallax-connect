@@ -126,7 +126,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             width: 48,
                             height: 48,
                             colorFilter: ColorFilter.mode(
-                              AppColors.accent,
+                              AppColors.secondary,
                               BlendMode.srcIn,
                             ),
                           ),
@@ -156,7 +156,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           const Icon(
                             LucideIcons.messageSquare,
                             size: 48,
-                            color: AppColors.accent,
+                            color: AppColors.secondary,
                           ),
                           const SizedBox(height: 16),
                           Text(

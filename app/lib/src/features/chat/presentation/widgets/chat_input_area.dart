@@ -209,14 +209,14 @@ class _ChatInputAreaState extends State<ChatInputArea> {
                               onTap: () => _removeAttachment(index),
                               child: Container(
                                 padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
+                                decoration: BoxDecoration(
+                                  color: AppColors.background.withOpacity(0.6),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
                                   LucideIcons.x,
                                   size: 12,
-                                  color: Colors.white,
+                                  color: AppColors.primary,
                                 ),
                               ),
                             ),
@@ -289,13 +289,13 @@ class _ChatInputAreaState extends State<ChatInputArea> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.black,
+                                color: AppColors.background,
                               ),
                             )
                           : const Icon(
                               LucideIcons.arrowUp,
                               size: 20,
-                              color: Colors.black,
+                              color: AppColors.background,
                             ),
                       onPressed: _handleSubmit,
                       padding: EdgeInsets.zero,

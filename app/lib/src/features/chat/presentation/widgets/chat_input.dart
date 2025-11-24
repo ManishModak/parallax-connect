@@ -78,14 +78,14 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                       onTap: () => setState(() => _selectedImage = null),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
+                        decoration: BoxDecoration(
+                          color: AppColors.background.withOpacity(0.6),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           LucideIcons.x,
                           size: 12,
-                          color: Colors.white,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),

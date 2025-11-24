@@ -23,12 +23,13 @@ class AttachmentMenu extends StatelessWidget {
         width: 200,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E), // Dark background matching screenshot
+          color: AppColors
+              .chatInputBackground, // Dark background matching screenshot
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.surfaceLight, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: AppColors.background.withOpacity(0.5),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

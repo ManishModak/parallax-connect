@@ -16,7 +16,7 @@ class App extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
+          seedColor: AppColors.brand,
           brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: AppColors.background,

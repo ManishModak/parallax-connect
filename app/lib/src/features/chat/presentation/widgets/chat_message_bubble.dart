@@ -121,7 +121,7 @@ class _ChatMessageBubbleState extends State<ChatMessageBubble> {
                   ),
                   code: GoogleFonts.firaCode(
                     color: AppColors.primary,
-                    backgroundColor: Colors.white10,
+                    backgroundColor: AppColors.codeBlockBorder,
                     fontSize: 14,
                   ),
                   // Removed codeblockDecoration - using custom code builder
@@ -241,13 +241,13 @@ class _ChatMessageBubbleState extends State<ChatMessageBubble> {
       child: Align(
         alignment: Alignment.centerLeft,
         child: Shimmer.fromColors(
-          baseColor: const Color(0xFF2A2A2A),
-          highlightColor: const Color(0xFF4A4A4A),
+          baseColor: AppColors.shimmerBase,
+          highlightColor: AppColors.shimmerHighlight,
           child: Container(
             width: 200,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: AppColors.background,
               borderRadius: BorderRadius.circular(20),
             ),
           ),
@@ -328,9 +328,9 @@ class CodeElementBuilder extends MarkdownElementBuilder {
 
       return Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+          color: AppColors.codeBlockBackground,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: AppColors.codeBlockBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -339,7 +339,9 @@ class CodeElementBuilder extends MarkdownElementBuilder {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.white10)),
+                border: Border(
+                  bottom: BorderSide(color: AppColors.codeBlockBorder),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -369,7 +371,7 @@ class CodeElementBuilder extends MarkdownElementBuilder {
                         border: Border.all(
                           color: isCopied(code)
                               ? AppColors.accent
-                              : Colors.white10,
+                              : AppColors.codeBlockBorder,
                         ),
                       ),
                       child: Row(

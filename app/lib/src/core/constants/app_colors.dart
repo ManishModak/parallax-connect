@@ -31,4 +31,23 @@ class AppColors {
   // Chat specific
   static const Color chatInputBackground = Color(0xFF1E1E1E);
   static const Color userBubbleBackground = Color(0xFF2A2A2A);
+
+  // Connection Modes
+  static const Color modeLocal = Colors.blue;
+  static const Color modeLocalLight = Color(0xFF64B5F6); // Colors.blue[300]
+  static const Color modeLocalLighter = Color(0xFF90CAF9); // Colors.blue[200]
+
+  static const Color modeCloud = Colors.orange;
+  static const Color modeCloudLight = Color(0xFFFFB74D); // Colors.orange[300]
+  static const Color modeCloudLighter = Color(0xFFFFCC80); // Colors.orange[200]
+
+  static const Color successDark = Color(0xFF388E3C); // Colors.green[700]
+
+  // Shimmer
+  static const Color shimmerBase = Color(0xFF2A2A2A);
+  static const Color shimmerHighlight = Color(0xFF4A4A4A);
+
+  // Code Block
+  static const Color codeBlockBackground = Color(0xFF1E1E1E);
+  static const Color codeBlockBorder = Color(0x1AFFFFFF); // Colors.white10
 }

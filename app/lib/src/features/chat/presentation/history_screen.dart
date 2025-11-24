@@ -114,37 +114,39 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           ),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? _isSearching
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                            AppColors.primary.withOpacity(0.7),
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  AppColors.primary.withOpacity(
+                                                    0.7,
+                                                  ),
+                                                ),
                                           ),
                                         ),
-                                      ),
-                                    )
-                                  : IconButton(
-                                      icon: Icon(
-                                        LucideIcons.x,
-                                        color: AppColors.secondary
-                                            .withOpacity(0.5),
-                                        size: 18,
-                                      ),
-                                      tooltip: 'Clear search',
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        _debounceTimer?.cancel();
-                                        setState(() {
-                                          _searchQuery = '';
-                                          _isSearching = false;
-                                        });
-                                      },
-                                    )
+                                      )
+                                    : IconButton(
+                                        icon: Icon(
+                                          LucideIcons.x,
+                                          color: AppColors.secondary
+                                              .withOpacity(0.5),
+                                          size: 18,
+                                        ),
+                                        tooltip: 'Clear search',
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _debounceTimer?.cancel();
+                                          setState(() {
+                                            _searchQuery = '';
+                                            _isSearching = false;
+                                          });
+                                        },
+                                      )
                               : null,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
@@ -495,13 +497,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           Icon(
                             LucideIcons.trash2,
                             size: 16,
-                            color: Colors.red.withOpacity(0.8),
+                            color: AppColors.error.withOpacity(0.8),
                           ),
                           const SizedBox(width: 12),
                           Text(
                             'Delete',
                             style: GoogleFonts.inter(
-                              color: Colors.red.withOpacity(0.8),
+                              color: AppColors.error.withOpacity(0.8),
                               fontSize: 14,
                             ),
                           ),
@@ -515,18 +517,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'Chat deleted',
-                            style: GoogleFonts.inter(),
+                            'Delete feature coming soon',
+                            style: GoogleFonts.inter(color: AppColors.primary),
                           ),
                           backgroundColor: AppColors.surface,
                           behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: AppColors.secondary.withOpacity(0.2),
+                            ),
                           ),
                         ),
                       );
                     } else if (value == 'rename') {
                       // TODO: Implement rename functionality
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Rename feature coming soon',
+                            style: GoogleFonts.inter(color: AppColors.primary),
+                          ),
+                          backgroundColor: AppColors.surface,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: AppColors.secondary.withOpacity(0.2),
+                            ),
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),

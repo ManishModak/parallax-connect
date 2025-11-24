@@ -60,7 +60,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       final scannedValue = await showModalBottomSheet<String>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.background,
         builder: (_) => const _QrScannerSheet(),
       );
 
@@ -146,12 +146,12 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(LucideIcons.checkCircle, color: Colors.white),
+            const Icon(LucideIcons.checkCircle, color: AppColors.primary),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.successDark,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -162,7 +162,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(icon, color: Colors.white),
+            Icon(icon, color: AppColors.primary),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
           ],
@@ -413,8 +413,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _isLocal
-                        ? Colors.blue.withOpacity(0.3)
-                        : Colors.orange.withOpacity(0.3),
+                        ? AppColors.modeLocal.withOpacity(0.3)
+                        : AppColors.modeCloud.withOpacity(0.3),
                   ),
                 ),
                 child: Column(
@@ -424,7 +424,9 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       children: [
                         Icon(
                           _isLocal ? LucideIcons.info : LucideIcons.cloud,
-                          color: _isLocal ? Colors.blue : Colors.orange,
+                          color: _isLocal
+                              ? AppColors.modeLocal
+                              : AppColors.modeCloud,
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -541,8 +543,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: _isLocal
-                            ? Colors.blue.withOpacity(0.1)
-                            : Colors.orange.withOpacity(0.1),
+                            ? AppColors.modeLocal.withOpacity(0.1)
+                            : AppColors.modeCloud.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
 
@@ -555,16 +557,16 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                                 _isLocal ? LucideIcons.wifi : LucideIcons.globe,
                                 size: 16,
                                 color: _isLocal
-                                    ? Colors.blue.shade300
-                                    : Colors.orange.shade300,
+                                    ? AppColors.modeLocalLight
+                                    : AppColors.modeCloudLight,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 _isLocal ? 'Local Mode' : 'Cloud Mode',
                                 style: GoogleFonts.inter(
                                   color: _isLocal
-                                      ? Colors.blue.shade300
-                                      : Colors.orange.shade300,
+                                      ? AppColors.modeLocalLight
+                                      : AppColors.modeCloudLight,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
@@ -578,8 +580,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                                 : 'Internet connection required on both devices.',
                             style: GoogleFonts.inter(
                               color: _isLocal
-                                  ? Colors.blue.shade200
-                                  : Colors.orange.shade200,
+                                  ? AppColors.modeLocalLighter
+                                  : AppColors.modeCloudLighter,
                               fontSize: 11,
                             ),
                           ),
@@ -685,7 +687,7 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
                   Text(
                     'Scan Server QR',
                     style: GoogleFonts.inter(
-                      color: Colors.white,
+                      color: AppColors.primary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -693,7 +695,7 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
                   const Spacer(),
                   IconButton(
                     tooltip: 'Close scanner',
-                    icon: const Icon(LucideIcons.x, color: Colors.white),
+                    icon: const Icon(LucideIcons.x, color: AppColors.primary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -703,7 +705,10 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Align the QR code within the frame to capture the server URL.',
-                style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                style: GoogleFonts.inter(
+                  color: AppColors.primary.withOpacity(0.7),
+                  fontSize: 13,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -733,7 +738,7 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
                       height: 220,
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.7),
+                          color: AppColors.primary.withOpacity(0.7),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(16),
