@@ -13,6 +13,22 @@ class ChatSession {
     required this.messageCount,
   });
 
+  ChatSession copyWith({
+    String? id,
+    String? title,
+    List<Map<String, dynamic>>? messages,
+    DateTime? timestamp,
+    int? messageCount,
+  }) {
+    return ChatSession(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      messages: messages ?? this.messages,
+      timestamp: timestamp ?? this.timestamp,
+      messageCount: messageCount ?? this.messageCount,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -37,4 +53,3 @@ class ChatSession {
     );
   }
 }
-

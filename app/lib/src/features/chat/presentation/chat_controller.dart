@@ -49,15 +49,28 @@ class ChatController extends Notifier<ChatState> {
     if (state.messages.isNotEmpty && !state.isPrivateMode) {
       try {
         final messageMaps = state.messages.map((m) => m.toMap()).toList();
-        await _archiveStorage.archiveSession(messages: messageMaps);
-        logger.i('Chat session archived before starting new chat');
+
+        if (state.currentSessionId != null) {
+          // Update existing session
+          await _archiveStorage.updateSession(
+            sessionId: state.currentSessionId!,
+            messages: messageMaps,
+          );
+          logger.i('Updated archived session: ${state.currentSessionId}');
+        } else {
+          // Create new session
+          await _archiveStorage.archiveSession(messages: messageMaps);
+          logger.i('Created new archived session');
+        }
       } catch (e) {
-        logger.e('Failed to archive session: $e');
+        logger.e('Failed to archive/update session: $e');
         // Continue with clearing even if archiving fails
       }
     }
 
     await clearHistory();
+    // Clear session ID for new chat
+    state = state.copyWith(currentSessionId: null);
   }
 
   void togglePrivateMode() {
@@ -120,8 +133,9 @@ class ChatController extends Notifier<ChatState> {
             .toList();
         String contextText = text;
         if (docAttachments.isNotEmpty) {
-          final docContent =
-              await _documentService.extractText(docAttachments.first);
+          final docContent = await _documentService.extractText(
+            docAttachments.first,
+          );
           contextText =
               'Document content:\n$docContent\n\nUser question: $text';
         }
@@ -132,7 +146,8 @@ class ChatController extends Notifier<ChatState> {
             .toList();
 
         // Only check connectivity if not local and not using edge vision
-        if (!isLocal && !(imageAttachments.isNotEmpty && visionMode == 'edge')) {
+        if (!isLocal &&
+            !(imageAttachments.isNotEmpty && visionMode == 'edge')) {
           final hasInternet = await _connectivityService.hasInternetConnection;
           if (!hasInternet) {
             throw Exception(
@@ -195,13 +210,22 @@ class ChatController extends Notifier<ChatState> {
     if (state.messages.isNotEmpty && !state.isPrivateMode) {
       try {
         final messageMaps = state.messages.map((m) => m.toMap()).toList();
-        await _archiveStorage.archiveSession(messages: messageMaps);
+        if (state.currentSessionId != null) {
+          await _archiveStorage.updateSession(
+            sessionId: state.currentSessionId!,
+            messages: messageMaps,
+          );
+        } else {
+          await _archiveStorage.archiveSession(messages: messageMaps);
+        }
       } catch (e) {
         logger.e('Failed to archive current session: $e');
       }
     }
 
-    final messages = session.messages.map((m) => ChatMessage.fromMap(m)).toList();
+    final messages = session.messages
+        .map((m) => ChatMessage.fromMap(m))
+        .toList();
 
     await _historyStorage.clearHistory();
     for (final msg in messages) {
@@ -212,8 +236,9 @@ class ChatController extends Notifier<ChatState> {
       messages: messages,
       isPrivateMode: false,
       error: null,
+      currentSessionId: session.id, // Track the loaded session ID
     );
-    logger.i('Loaded archived session: ${session.title}');
+    logger.i('Loaded archived session: ${session.title} (${session.id})');
   }
 }
 

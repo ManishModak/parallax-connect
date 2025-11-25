@@ -13,6 +13,7 @@ class HistoryItemTile extends ConsumerWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onRename;
+  final VoidCallback? onExport;
 
   const HistoryItemTile({
     super.key,
@@ -22,6 +23,7 @@ class HistoryItemTile extends ConsumerWidget {
     this.onTap,
     this.onDelete,
     this.onRename,
+    this.onExport,
   });
 
   void _showSnackBar(BuildContext context, String message) {
@@ -35,9 +37,7 @@ class HistoryItemTile extends ConsumerWidget {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: AppColors.secondary.withValues(alpha: 0.2),
-          ),
+          side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.2)),
         ),
       ),
     );
@@ -53,7 +53,10 @@ class HistoryItemTile extends ConsumerWidget {
             : AppColors.surface.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(14),
         border: isActive
-            ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5)
+            ? Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 1.5,
+              )
             : Border.all(
                 color: AppColors.secondary.withValues(alpha: 0.05),
                 width: 1,
@@ -140,6 +143,26 @@ class HistoryItemTile extends ConsumerWidget {
                       ),
                     ),
                     PopupMenuItem(
+                      value: 'export',
+                      child: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.share,
+                            size: 16,
+                            color: AppColors.secondary,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Export PDF',
+                            style: GoogleFonts.inter(
+                              color: AppColors.secondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
                       value: 'delete',
                       child: Row(
                         children: [
@@ -173,6 +196,12 @@ class HistoryItemTile extends ConsumerWidget {
                       } else {
                         _showSnackBar(context, 'Rename feature coming soon');
                       }
+                    } else if (value == 'export') {
+                      if (onExport != null) {
+                        onExport!();
+                      } else {
+                        _showSnackBar(context, 'Export feature coming soon');
+                      }
                     }
                   },
                 ),
@@ -184,4 +213,3 @@ class HistoryItemTile extends ConsumerWidget {
     );
   }
 }
-

@@ -6,8 +6,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/haptics_helper.dart';
+import '../../../core/storage/chat_archive_storage.dart';
 import 'settings_controller.dart';
 import 'widgets/about_card.dart';
+import 'widgets/clear_history_confirmation_dialog.dart';
 import 'widgets/context_slider.dart';
 import 'widgets/haptics_selector.dart';
 import 'widgets/response_preference_section.dart';
@@ -157,6 +159,111 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 32),
 
+          const SectionHeader(title: 'Data & Storage'),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.secondary.withValues(alpha: 0.1),
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (dialogContext) => ClearHistoryConfirmationDialog(
+                      onClear: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          await ref
+                              .read(chatArchiveStorageProvider)
+                              .clearAllSessions();
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'All chat history cleared',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              backgroundColor: AppColors.surface,
+                            ),
+                          );
+                        } catch (e) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to clear history',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.error,
+                                ),
+                              ),
+                              backgroundColor: AppColors.surface,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          LucideIcons.trash2,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Clear Chat History',
+                              style: GoogleFonts.inter(
+                                color: AppColors.error,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Delete all archived chat sessions',
+                              style: GoogleFonts.inter(
+                                color: AppColors.secondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        LucideIcons.chevronRight,
+                        color: AppColors.secondary.withValues(alpha: 0.5),
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+
           const SectionHeader(title: 'About Parallax Connect'),
           const SizedBox(height: 16),
           const AboutCard(),
@@ -175,5 +282,4 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-
 }

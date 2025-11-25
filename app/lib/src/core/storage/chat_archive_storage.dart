@@ -99,6 +99,50 @@ class ChatArchiveStorage {
     }
   }
 
+  /// Rename an archived session
+  Future<void> renameSession(String sessionId, String newTitle) async {
+    try {
+      final session = getSessionById(sessionId);
+      if (session == null) {
+        throw Exception('Session not found');
+      }
+
+      final updatedSession = session.copyWith(title: newTitle);
+      await _box.put(sessionId, updatedSession.toMap());
+      logger.storage('Renamed session: $sessionId to "$newTitle"');
+    } catch (e) {
+      logger.e('Failed to rename session: $e');
+      rethrow;
+    }
+  }
+
+  /// Update an existing archived session with new messages
+  Future<void> updateSession({
+    required String sessionId,
+    required List<Map<String, dynamic>> messages,
+  }) async {
+    try {
+      final session = getSessionById(sessionId);
+      if (session == null) {
+        throw Exception('Session not found');
+      }
+
+      final updatedSession = session.copyWith(
+        messages: messages,
+        messageCount: messages.length,
+        timestamp: DateTime.now(), // Update timestamp to bring to top
+      );
+
+      await _box.put(sessionId, updatedSession.toMap());
+      logger.storage(
+        'Updated session: $sessionId with ${messages.length} messages',
+      );
+    } catch (e) {
+      logger.e('Failed to update session: $e');
+      rethrow;
+    }
+  }
+
   /// Search sessions by title or content
   List<ChatSession> searchSessions(String query) {
     try {
@@ -148,6 +192,17 @@ class ChatArchiveStorage {
 
   /// Clear all archived sessions
   Future<void> clearAllArchives() async {
+    try {
+      await _box.clear();
+      logger.storage('All archived sessions cleared');
+    } catch (e) {
+      logger.e('Failed to clear archives: $e');
+      rethrow;
+    }
+  }
+
+  /// Clear all archived sessions
+  Future<void> clearAllSessions() async {
     try {
       await _box.clear();
       logger.storage('All archived sessions cleared');

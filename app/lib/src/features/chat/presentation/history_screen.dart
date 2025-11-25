@@ -10,11 +10,15 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/services/export_service.dart';
 import '../../../core/storage/chat_archive_storage.dart';
+
 import '../../../core/utils/haptics_helper.dart';
 import 'chat_controller.dart';
+import 'widgets/delete_confirmation_dialog.dart';
 import 'widgets/history_item_tile.dart';
 import 'widgets/new_chat_button.dart';
+import 'widgets/rename_dialog.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -121,6 +125,100 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
+  Future<void> _handleDelete(ChatSession session) async {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => DeleteConfirmationDialog(
+        sessionTitle: session.title,
+        onDelete: () async {
+          try {
+            await ref
+                .read(chatArchiveStorageProvider)
+                .deleteSession(session.id);
+            _loadSessions();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Chat deleted',
+                    style: GoogleFonts.inter(color: AppColors.primary),
+                  ),
+                  backgroundColor: AppColors.surface,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: AppColors.secondary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Failed to delete chat',
+                    style: GoogleFonts.inter(color: AppColors.error),
+                  ),
+                  backgroundColor: AppColors.surface,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleRename(ChatSession session) async {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => RenameDialog(
+        currentTitle: session.title,
+        onRename: (newTitle) async {
+          try {
+            await ref
+                .read(chatArchiveStorageProvider)
+                .renameSession(session.id, newTitle);
+            _loadSessions();
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Failed to rename chat',
+                    style: GoogleFonts.inter(color: AppColors.error),
+                  ),
+                  backgroundColor: AppColors.surface,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleExport(ChatSession session) async {
+    try {
+      await ref.read(exportServiceProvider).exportSessionToPdf(session);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to export chat',
+              style: GoogleFonts.inter(color: AppColors.error),
+            ),
+            backgroundColor: AppColors.surface,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Reload sessions when search query changes
@@ -200,8 +298,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             strokeWidth: 2,
                                             valueColor:
                                                 AlwaysStoppedAnimation<Color>(
-                                                  AppColors.primary.withValues(alpha: 
-                                                    0.7,
+                                                  AppColors.primary.withValues(
+                                                    alpha: 0.7,
                                                   ),
                                                 ),
                                           ),
@@ -210,8 +308,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     : IconButton(
                                         icon: Icon(
                                           LucideIcons.x,
-                                          color: AppColors.secondary
-                                              .withValues(alpha: 0.5),
+                                          color: AppColors.secondary.withValues(
+                                            alpha: 0.5,
+                                          ),
                                           size: 18,
                                         ),
                                         tooltip: 'Clear search',
@@ -239,10 +338,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      LucideIcons.x,
-                      color: AppColors.secondary,
-                    ),
+                    icon: const Icon(LucideIcons.x, color: AppColors.secondary),
                     tooltip: 'Close history',
                     onPressed: () {
                       ref.read(hapticsHelperProvider).triggerHaptics();
@@ -403,6 +499,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       .loadArchivedSession(session.id);
                   context.pop();
                 },
+                onDelete: () => _handleDelete(session),
+                onRename: () => _handleRename(session),
+                onExport: () => _handleExport(session),
               ),
             ),
             const SizedBox(height: 16),
@@ -460,6 +559,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 .loadArchivedSession(session.id);
             context.pop();
           },
+          onDelete: () => _handleDelete(session),
+          onRename: () => _handleRename(session),
+          onExport: () => _handleExport(session),
         );
       },
     );
