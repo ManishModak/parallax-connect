@@ -6,15 +6,44 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/haptics_helper.dart';
+import '../../chat/presentation/archived_sessions_screen.dart';
 import 'settings_controller.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  late TextEditingController _systemPromptController;
+
+  @override
+  void initState() {
+    super.initState();
+    _systemPromptController = TextEditingController(
+      text: ref.read(settingsControllerProvider).systemPrompt,
+    );
+  }
+
+  @override
+  void dispose() {
+    _systemPromptController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
+
+    ref.listen(settingsControllerProvider, (previous, next) {
+      if (previous?.systemPrompt != next.systemPrompt &&
+          _systemPromptController.text != next.systemPrompt) {
+        _systemPromptController.text = next.systemPrompt;
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,30 +58,13 @@ class SettingsScreen extends ConsumerWidget {
           },
         ),
         title: Text(
-          'Settings',
-          style: GoogleFonts.inter(
-            color: AppColors.primary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          'Settings (BETA)',
+          style: GoogleFonts.inter(color: AppColors.primary),
         ),
         centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          // Section 1: App Settings
-          _buildSectionHeader('App Settings'),
-          const SizedBox(height: 16),
-          _buildHapticsSelector(context, state.hapticsLevel, controller, ref),
-          const SizedBox(height: 16),
-          _buildClearDataTile(context, controller, ref),
-          const SizedBox(height: 32),
-
-          // Section 2: Vision Pipeline
-          _buildSectionHeader('Vision Pipeline'),
-          const SizedBox(height: 8),
-          Text(
             'Choose how images/documents are processed',
             style: GoogleFonts.inter(color: AppColors.secondary, fontSize: 14),
           ),
@@ -97,7 +109,13 @@ class SettingsScreen extends ConsumerWidget {
           }),
           const SizedBox(height: 32),
 
-          // Section 4: About
+          // Section 4: Response Preference
+          _buildSectionHeader('Response Preference'),
+          const SizedBox(height: 16),
+          _buildResponsePreferenceSection(context, state, controller, ref),
+          const SizedBox(height: 32),
+
+          // Section 5: About
           _buildSectionHeader('About Parallax Connect'),
           const SizedBox(height: 16),
           _buildAboutCard(),
@@ -118,13 +136,16 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.inter(
-        color: AppColors.primary,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title.toUpperCase(),
+        style: GoogleFonts.inter(
+          color: AppColors.secondary,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.0,
+        ),
       ),
     );
   }
@@ -138,61 +159,92 @@ class SettingsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Haptics Level',
-          style: GoogleFonts.inter(
-            color: AppColors.primaryMildVariant,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.secondary.withOpacity(0.1)),
           ),
-        ),
-        const SizedBox(height: 12),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(
-              value: 'none',
-              label: Text('None'),
-              icon: Icon(LucideIcons.smartphone),
-            ),
-            ButtonSegment(
-              value: 'min',
-              label: Text('Min'),
-              icon: Icon(LucideIcons.vibrate),
-            ),
-            ButtonSegment(
-              value: 'max',
-              label: Text('Max'),
-              icon: Icon(LucideIcons.waves),
-            ),
-          ],
-          selected: {currentLevel},
-          onSelectionChanged: (Set<String> newSelection) {
-            ref.read(hapticsHelperProvider).triggerHaptics();
-            controller.setHapticsLevel(newSelection.first);
-          },
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.resolveWith<Color>((
-              Set<MaterialState> states,
-            ) {
-              if (states.contains(MaterialState.selected)) {
-                return AppColors.primary;
-              }
-              return AppColors.surface;
-            }),
-            foregroundColor: MaterialStateProperty.resolveWith<Color>((
-              Set<MaterialState> states,
-            ) {
-              if (states.contains(MaterialState.selected)) {
-                return AppColors.background;
-              }
-              return AppColors.secondary;
-            }),
-            side: MaterialStateProperty.all(
-              BorderSide(color: AppColors.secondary.withOpacity(0.2)),
-            ),
+          child: Row(
+            children: [
+              _buildHapticOption(
+                context,
+                'None',
+                'none',
+                currentLevel,
+                LucideIcons.smartphone,
+                controller,
+                ref,
+              ),
+              Container(width: 1, color: AppColors.secondary.withOpacity(0.1)),
+              _buildHapticOption(
+                context,
+                'Min',
+                'min',
+                currentLevel,
+                LucideIcons.vibrate,
+                controller,
+                ref,
+              ),
+              Container(width: 1, color: AppColors.secondary.withOpacity(0.1)),
+              _buildHapticOption(
+                context,
+                'Max',
+                'max',
+                currentLevel,
+                LucideIcons.waves,
+                controller,
+                ref,
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildHapticOption(
+    BuildContext context,
+    String label,
+    String value,
+    String groupValue,
+    IconData icon,
+    SettingsController controller,
+    WidgetRef ref,
+  ) {
+    final isSelected = value == groupValue;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          ref.read(hapticsHelperProvider).triggerHaptics();
+          controller.setHapticsLevel(value);
+        },
+        child: Container(
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.1)
+              : Colors.transparent,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppColors.primary : AppColors.secondary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: isSelected ? AppColors.primary : AppColors.secondary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -405,89 +457,97 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildContextSlider(int value, ValueChanged<double> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Max Context Injection',
-              style: GoogleFonts.inter(
-                color: AppColors.primaryMildVariant,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$value tokens',
-                style: GoogleFonts.inter(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'How much PDF text to send to the server at once. Lower values = less VRAM usage. Higher values = better context but may cause OOM.',
-          style: GoogleFonts.inter(
-            color: AppColors.secondary,
-            fontSize: 13,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 16),
-        SliderTheme(
-          data: SliderThemeData(
-            activeTrackColor: AppColors.primary,
-            inactiveTrackColor: AppColors.surfaceLight,
-            thumbColor: AppColors.primary,
-            overlayColor: AppColors.primary.withOpacity(0.1),
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-          ),
-          child: Slider(
-            value: value.toDouble(),
-            min: 2000,
-            max: 16000,
-            divisions: 14, // (16000 - 2000) / 1000 = 14 steps
-            label: '$value',
-            onChanged: onChanged,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '2k',
+                'Max Context Injection',
                 style: GoogleFonts.inter(
-                  color: AppColors.secondary,
-                  fontSize: 12,
+                  color: AppColors.primaryMildVariant,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
                 ),
               ),
-              Text(
-                '16k',
-                style: GoogleFonts.inter(
-                  color: AppColors.secondary,
-                  fontSize: 12,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$value tokens',
+                  style: GoogleFonts.inter(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            'How much PDF text to send to the server at once. Lower values = less VRAM usage. Higher values = better context but may cause OOM.',
+            style: GoogleFonts.inter(
+              color: AppColors.secondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SliderTheme(
+            data: SliderThemeData(
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.background,
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withOpacity(0.1),
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            ),
+            child: Slider(
+              value: value.toDouble(),
+              min: 2000,
+              max: 16000,
+              divisions: 14, // (16000 - 2000) / 1000 = 14 steps
+              label: '$value',
+              onChanged: onChanged,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '2k',
+                  style: GoogleFonts.inter(
+                    color: AppColors.secondary,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  '16k',
+                  style: GoogleFonts.inter(
+                    color: AppColors.secondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -522,6 +582,103 @@ class SettingsScreen extends ConsumerWidget {
           ]),
         ],
       ),
+    );
+  }
+
+  Widget _buildResponsePreferenceSection(
+    BuildContext context,
+    SettingsState state,
+    SettingsController controller,
+    WidgetRef ref,
+  ) {
+    final presets = [
+      'Concise',
+      'Formal',
+      'Casual',
+      'Detailed',
+      'Humorous',
+      'Neutral',
+      'Custom',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.secondary.withOpacity(0.1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _systemPromptController,
+                maxLines: 4,
+                style: GoogleFonts.inter(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter system instructions...',
+                  hintStyle: GoogleFonts.inter(
+                    color: AppColors.secondary.withOpacity(0.5),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: (value) {
+                  controller.setSystemPrompt(value);
+                },
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: presets.map((preset) {
+                  final isSelected = state.responseStyle == preset;
+                  return ChoiceChip(
+                    label: Text(
+                      preset,
+                      style: GoogleFonts.inter(
+                        color: isSelected
+                            ? AppColors.background
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      if (selected) {
+                        ref.read(hapticsHelperProvider).triggerHaptics();
+                        controller.setResponseStyle(preset);
+                      }
+                    },
+                    selectedColor: AppColors.primary,
+                    backgroundColor: AppColors.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.secondary.withOpacity(0.2),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

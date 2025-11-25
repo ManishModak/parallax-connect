@@ -41,14 +41,19 @@ class ChatRepository {
     }
   }
 
-  Future<String> generateText(String prompt) async {
+  Future<String> generateText(String prompt, {String? systemPrompt}) async {
     final baseUrl = _configStorage.getBaseUrl();
     if (baseUrl == null) throw Exception('No Base URL configured');
 
     try {
+      final data = {'prompt': prompt};
+      if (systemPrompt != null && systemPrompt.isNotEmpty) {
+        data['system_prompt'] = systemPrompt;
+      }
+
       final response = await _dio.post(
         '$baseUrl/chat',
-        data: {'prompt': prompt},
+        data: data,
         options: Options(headers: _buildPasswordHeader()),
       );
 

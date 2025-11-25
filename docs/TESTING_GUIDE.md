@@ -142,7 +142,7 @@ curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "
 # Test chat in PROXY mode (to verify Parallax connection)
 # Change SERVER_MODE back to "PROXY" and restart
 curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -H "x-password: YOUR_PASSWORD" -d "{\"prompt\":\"Say hello\"}"
-# Expected: {"response":"Hello! How can I assist you today?"}
+# Expected: {"response":"Hello! How can I assist you today?", "metadata":{"usage":{...}, "timing":{...}}}
 ```
 
 ### Step 4: Configure Mobile App
@@ -198,6 +198,7 @@ flutter run
 📝 [20251125105530123456] Received chat request: Hello, can you help me?...
 🔄 [20251125105530123456] Forwarding to Parallax at http://localhost:3001/v1/chat/completions
 ✅ [20251125105530123456] Received response from Parallax (2.34s)
+📊 [20251125105530123456] Tokens - Prompt: 15, Completion: 127, Total: 142
 ```
 
 **Parallax Terminal:**
@@ -280,6 +281,7 @@ ngrok config add-authtoken YOUR_TOKEN_HERE
 📝 [ID] Received chat request: Hello...
 🔄 [ID] Forwarding to Parallax at http://localhost:3001/v1/chat/completions
 ✅ [ID] Received response from Parallax (2.50s)
+📊 [ID] Tokens - Prompt: 5, Completion: 20, Total: 25
 ```
 
 **Mobile app:**

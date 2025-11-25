@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/connectivity_service.dart';
+import '../../../core/storage/chat_archive_storage.dart';
 import '../../../core/storage/chat_history_storage.dart';
 import '../../../core/storage/config_storage.dart';
+import '../../settings/data/settings_storage.dart';
+import '../../../core/utils/logger.dart';
 import '../data/chat_repository.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -70,15 +73,19 @@ class ChatState {
 class ChatController extends Notifier<ChatState> {
   late final ChatRepository _repository;
   late final ChatHistoryStorage _historyStorage;
+  late final ChatArchiveStorage _archiveStorage;
   late final ConnectivityService _connectivityService;
   late final ConfigStorage _configStorage;
+  late final SettingsStorage _settingsStorage;
 
   @override
   ChatState build() {
     _repository = ref.read(chatRepositoryProvider);
     _historyStorage = ref.read(chatHistoryStorageProvider);
+    _archiveStorage = ref.read(chatArchiveStorageProvider);
     _connectivityService = ref.read(connectivityServiceProvider);
     _configStorage = ref.read(configStorageProvider);
+    _settingsStorage = ref.read(settingsStorageProvider);
 
     // Load history and return initial state with messages
     final history = _historyStorage.getHistory();
@@ -88,8 +95,19 @@ class ChatController extends Notifier<ChatState> {
   }
 
   Future<void> startNewChat() async {
-    // TODO: Archive current chat session before clearing
-    // In a real app, we would archive the current session first
+    // Archive current chat session before clearing
+    // Only archive if there are messages and not in private mode
+    if (state.messages.isNotEmpty && !state.isPrivateMode) {
+      try {
+        final messageMaps = state.messages.map((m) => m.toMap()).toList();
+        await _archiveStorage.archiveSession(messages: messageMaps);
+        logger.i('Chat session archived before starting new chat');
+      } catch (e) {
+        logger.e('Failed to archive session: $e');
+        // Continue with clearing even if archiving fails
+      }
+    }
+
     await clearHistory();
   }
 
@@ -151,7 +169,13 @@ class ChatController extends Notifier<ChatState> {
           }
         }
 
-        response = await _repository.generateText(text);
+        }
+
+        final systemPrompt = _settingsStorage.getSystemPrompt();
+        response = await _repository.generateText(
+          text,
+          systemPrompt: systemPrompt,
+        );
       }
 
       final aiMessage = ChatMessage(

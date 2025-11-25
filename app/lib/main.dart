@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/app.dart';
+import 'src/core/storage/chat_archive_storage.dart';
 import 'src/core/storage/chat_history_storage.dart';
 import 'src/core/storage/config_storage.dart';
 import 'src/core/utils/logger.dart';
@@ -18,6 +19,7 @@ void main() async {
   }
 
   await ChatHistoryStorage.init();
+  await ChatArchiveStorage.init();
   final sharedPrefs = await SharedPreferences.getInstance();
 
   runApp(

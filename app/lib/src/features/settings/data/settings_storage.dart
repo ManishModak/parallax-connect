@@ -8,6 +8,8 @@ class SettingsStorage {
   static const _keyVisionPipelineMode = 'settings_vision_pipeline_mode';
   static const _keySmartContextEnabled = 'settings_smart_context_enabled';
   static const _keyMaxContextTokens = 'settings_max_context_tokens';
+  static const _keySystemPrompt = 'settings_system_prompt';
+  static const _keyResponseStyle = 'settings_response_style';
 
   final SharedPreferences _prefs;
 
@@ -60,12 +62,33 @@ class SettingsStorage {
     return _prefs.getInt(_keyMaxContextTokens) ?? 4096;
   }
 
+  // System Prompt
+  Future<void> setSystemPrompt(String prompt) async {
+    await _prefs.setString(_keySystemPrompt, prompt);
+  }
+
+  String getSystemPrompt() {
+    return _prefs.getString(_keySystemPrompt) ?? '';
+  }
+
+  // Response Style
+  // Values: 'Concise', 'Formal', 'Casual', 'Detailed', 'Humorous', 'Neutral', 'Custom'
+  Future<void> setResponseStyle(String style) async {
+    await _prefs.setString(_keyResponseStyle, style);
+  }
+
+  String getResponseStyle() {
+    return _prefs.getString(_keyResponseStyle) ?? 'Neutral';
+  }
+
   // Clear all settings (reset to defaults)
   Future<void> clearSettings() async {
     await _prefs.remove(_keyHapticsLevel);
     await _prefs.remove(_keyVisionPipelineMode);
     await _prefs.remove(_keySmartContextEnabled);
     await _prefs.remove(_keyMaxContextTokens);
+    await _prefs.remove(_keySystemPrompt);
+    await _prefs.remove(_keyResponseStyle);
   }
 }
 

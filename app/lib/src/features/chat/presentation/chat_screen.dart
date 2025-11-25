@@ -70,11 +70,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         title: Text(
           'Parallax Connect',
-          style: GoogleFonts.inter(
-            color: AppColors.primaryMildVariant,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: GoogleFonts.inter(color: AppColors.primary, fontSize: 16),
         ),
         centerTitle: true,
         actions: [

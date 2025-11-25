@@ -16,7 +16,7 @@ from fastapi import (
 )
 from pydantic import BaseModel
 from pyngrok import ngrok
-from typing import Optional
+from typing import List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -159,7 +159,130 @@ def health_check():
 
 
 class ChatRequest(BaseModel):
-    prompt: str
+    """
+    Chat request model with support for advanced AI sampling parameters.
+
+    These parameters control how the AI generates responses, affecting
+    creativity, randomness, repetition, and output format.
+    """
+
+    # === REQUIRED ===
+    # === REQUIRED ===
+    prompt: str  # The user's message/question
+    system_prompt: Optional[str] = None  # Optional system instructions
+
+    # === BASIC PARAMETERS ===
+    max_tokens: int = 512
+    """
+    Maximum number of tokens (words/pieces) to generate.
+    - Default: 512
+    - Range: 1 to model's max (usually 2048-4096)
+    - Use cases:
+      • Short answers: 50-100
+      • Normal chat: 256-512
+      • Long explanations: 1024-2048
+    """
+
+    # === CREATIVITY CONTROLS ===
+    temperature: float = 0.7
+    """
+    Controls randomness/creativity in responses.
+    - Default: 0.7 (balanced)
+    - Range: 0.0 to 2.0
+    - How to use:
+      • 0.0-0.3: Very focused, deterministic (factual Q&A, code)
+      • 0.4-0.7: Balanced (normal conversation)
+      • 0.8-1.2: Creative (brainstorming, stories)
+      • 1.3-2.0: Very random (experimental, unusual ideas)
+    - Note: 0.0 becomes greedy sampling (always picks most likely token)
+    """
+
+    top_p: float = 0.9
+    """
+    Nucleus sampling - considers only top tokens whose probabilities sum to this value.
+    - Default: 0.9
+    - Range: 0.0 to 1.0
+    - How to use:
+      • 0.5-0.7: More focused, less variety
+      • 0.9: Balanced (recommended)
+      • 0.95-1.0: Maximum variety
+    - Works with temperature to control randomness
+    """
+
+    top_k: int = -1
+    """
+    Limits sampling to the top K most likely tokens.
+    - Default: -1 (disabled)
+    - Range: -1 (off) or 1 to 100+
+    - How to use:
+      • -1: Disabled, use top_p instead
+      • 10-20: Very focused
+      • 40-50: Balanced
+      • 80-100: More variety
+    - Can be used together with top_p and temperature
+    """
+
+    # === REPETITION CONTROLS ===
+    repetition_penalty: float = 1.0
+    """
+    Penalizes tokens that have already appeared.
+    - Default: 1.0 (no penalty)
+    - Range: 0.0 to 2.0
+    - How to use:
+      • 1.0: No penalty
+      • 1.05-1.15: Slight reduction in repetition (recommended)
+      • 1.2-1.5: Strong penalty (use when AI repeats too much)
+      • >1.5: Very strong (may produce nonsense)
+    - Helps reduce repetitive phrases
+    """
+
+    presence_penalty: float = 0.0
+    """
+    Penalizes tokens based on whether they appear in the text.
+    - Default: 0.0
+    - Range: -2.0 to 2.0
+    - How to use:
+      • Positive (0.1-1.0): Encourages new topics/ideas
+      • 0.0: Neutral
+      • Negative (-0.5 to -1.0): Encourages staying on topic
+    - Good for encouraging topic diversity
+    """
+
+    frequency_penalty: float = 0.0
+    """
+    Penalizes tokens based on how often they appear.
+    - Default: 0.0
+    - Range: -2.0 to 2.0
+    - How to use:
+      • Positive (0.1-1.0): Reduces word repetition
+      • 0.0: Neutral
+      • Negative: Allows more repetition
+    - Different from repetition_penalty (counts frequency, not just presence)
+    """
+
+    # === OUTPUT CONTROLS ===
+    stop: List[str] = []
+    """
+    List of strings where generation should stop.
+    - Default: [] (empty, use model's default stop tokens)
+    - Examples:
+      • ["###", "---"]: Stop at these markers
+      • ["\n\n", "User:"]: Stop at double newline or "User:"
+      • ["```"]: Stop at code block end
+    - Useful for:
+      • Structured output (stop at section markers)
+      • Turn-based conversation (stop at user prompt)
+      • Limiting response format
+    """
+
+    # === ADVANCED (Future) ===
+    # json_schema: Optional[str] = None
+    # """
+    # JSON schema to force structured output.
+    # - Use when you need JSON responses
+    # - Ensures AI returns valid JSON matching the schema
+    # - Example: '{"type": "object", "properties": {"answer": {"type": "string"}}}'
+    # """
 
 
 @app.get("/status", dependencies=[Depends(check_password)])
@@ -205,11 +328,30 @@ async def chat_endpoint(request: ChatRequest):
             )
 
             async with httpx.AsyncClient() as client:
-                # Construct OpenAI-compatible payload
+                # Construct OpenAI-compatible payload with all parameters
+                messages = []
+                if request.system_prompt:
+                    messages.append(
+                        {"role": "system", "content": request.system_prompt}
+                    )
+                messages.append({"role": "user", "content": request.prompt})
+
                 payload = {
-                    "model": "default",  # Or specific model name if needed
-                    "messages": [{"role": "user", "content": request.prompt}],
+                    "model": "default",
+                    "messages": messages,
                     "stream": False,
+                    # Token limit
+                    "max_tokens": request.max_tokens,
+                    # Sampling parameters for creativity control
+                    "temperature": request.temperature,
+                    "top_p": request.top_p,
+                    "top_k": request.top_k,
+                    # Repetition control
+                    "repetition_penalty": request.repetition_penalty,
+                    "presence_penalty": request.presence_penalty,
+                    "frequency_penalty": request.frequency_penalty,
+                    # Stop sequences
+                    "stop": request.stop if request.stop else None,
                 }
                 logger.debug(f"📦 [{request_id}] Payload: {payload}")
 
@@ -230,13 +372,37 @@ async def chat_endpoint(request: ChatRequest):
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
 
+                # Extract usage metadata (token counts)
+                usage = data.get("usage", {})
+
                 elapsed = (datetime.now() - start_time).total_seconds()
                 logger.info(
                     f"✅ [{request_id}] Received response from Parallax ({elapsed:.2f}s)"
                 )
+                logger.info(
+                    f"📊 [{request_id}] Tokens - Prompt: {usage.get('prompt_tokens', 0)}, "
+                    f"Completion: {usage.get('completion_tokens', 0)}, "
+                    f"Total: {usage.get('total_tokens', 0)}"
+                )
                 logger.debug(f"📨 [{request_id}] Response preview: {content[:100]}...")
 
-                return {"response": content}
+                # Return response with metadata for mobile app
+                return {
+                    "response": content,
+                    # Metadata for display in mobile app
+                    "metadata": {
+                        "usage": {
+                            "prompt_tokens": usage.get("prompt_tokens", 0),
+                            "completion_tokens": usage.get("completion_tokens", 0),
+                            "total_tokens": usage.get("total_tokens", 0),
+                        },
+                        "timing": {
+                            "duration_ms": int(elapsed * 1000),
+                            "duration_seconds": round(elapsed, 2),
+                        },
+                        "model": data.get("model", "default"),
+                    },
+                }
 
         except httpx.TimeoutException as e:
             logger.error(f"⏱️ [{request_id}] Parallax request timeout: {e}")

@@ -8,12 +8,16 @@ class SettingsState {
   final String visionPipelineMode;
   final bool isSmartContextEnabled;
   final int maxContextTokens;
+  final String systemPrompt;
+  final String responseStyle;
 
   SettingsState({
     required this.hapticsLevel,
     required this.visionPipelineMode,
     required this.isSmartContextEnabled,
     required this.maxContextTokens,
+    required this.systemPrompt,
+    required this.responseStyle,
   });
 
   SettingsState copyWith({
@@ -21,6 +25,8 @@ class SettingsState {
     String? visionPipelineMode,
     bool? isSmartContextEnabled,
     int? maxContextTokens,
+    String? systemPrompt,
+    String? responseStyle,
   }) {
     return SettingsState(
       hapticsLevel: hapticsLevel ?? this.hapticsLevel,
@@ -28,6 +34,8 @@ class SettingsState {
       isSmartContextEnabled:
           isSmartContextEnabled ?? this.isSmartContextEnabled,
       maxContextTokens: maxContextTokens ?? this.maxContextTokens,
+      systemPrompt: systemPrompt ?? this.systemPrompt,
+      responseStyle: responseStyle ?? this.responseStyle,
     );
   }
 }
@@ -46,6 +54,8 @@ class SettingsController extends Notifier<SettingsState> {
       visionPipelineMode: _settingsStorage.getVisionPipelineMode(),
       isSmartContextEnabled: _settingsStorage.getSmartContextEnabled(),
       maxContextTokens: _settingsStorage.getMaxContextTokens(),
+      systemPrompt: _settingsStorage.getSystemPrompt(),
+      responseStyle: _settingsStorage.getResponseStyle(),
     );
   }
 
@@ -69,6 +79,49 @@ class SettingsController extends Notifier<SettingsState> {
     state = state.copyWith(maxContextTokens: tokens);
   }
 
+  Future<void> setSystemPrompt(String prompt) async {
+    await _settingsStorage.setSystemPrompt(prompt);
+    // If the prompt doesn't match the current style's preset, switch to Custom
+    // This logic might be better handled in the UI or by checking against known presets
+    if (state.responseStyle != 'Custom' &&
+        _getPresetPrompt(state.responseStyle) != prompt) {
+      await setResponseStyle('Custom');
+    }
+    state = state.copyWith(systemPrompt: prompt);
+  }
+
+  Future<void> setResponseStyle(String style) async {
+    await _settingsStorage.setResponseStyle(style);
+
+    // If it's a preset, update the system prompt text
+    if (style != 'Custom') {
+      final presetPrompt = _getPresetPrompt(style);
+      await _settingsStorage.setSystemPrompt(presetPrompt);
+      state = state.copyWith(responseStyle: style, systemPrompt: presetPrompt);
+    } else {
+      state = state.copyWith(responseStyle: style);
+    }
+  }
+
+  String _getPresetPrompt(String style) {
+    switch (style) {
+      case 'Concise':
+        return 'Keep the response brief and direct. Use as few words as necessary to clearly convey the message. Avoid unnecessary elaboration.';
+      case 'Formal':
+        return 'Maintain a professional and formal tone. Use complete sentences and avoid slang or colloquialisms.';
+      case 'Casual':
+        return 'Keep the tone conversational and friendly. Feel free to use idioms and a more relaxed style.';
+      case 'Detailed':
+        return 'Provide comprehensive and detailed explanations. Cover all aspects of the topic thoroughly.';
+      case 'Humorous':
+        return 'Inject humor and wit into the responses where appropriate. Keep the tone lighthearted.';
+      case 'Neutral':
+        return '';
+      default:
+        return '';
+    }
+  }
+
   Future<void> clearAllData() async {
     await _chatHistoryStorage.clearHistory();
     await _settingsStorage.clearSettings();
@@ -79,6 +132,8 @@ class SettingsController extends Notifier<SettingsState> {
       visionPipelineMode: _settingsStorage.getVisionPipelineMode(),
       isSmartContextEnabled: _settingsStorage.getSmartContextEnabled(),
       maxContextTokens: _settingsStorage.getMaxContextTokens(),
+      systemPrompt: _settingsStorage.getSystemPrompt(),
+      responseStyle: _settingsStorage.getResponseStyle(),
     );
   }
 }
