@@ -1,74 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/connectivity_service.dart';
+import '../../../core/services/document_service.dart';
+import '../../../core/services/vision_service.dart';
 import '../../../core/storage/chat_archive_storage.dart';
 import '../../../core/storage/chat_history_storage.dart';
 import '../../../core/storage/config_storage.dart';
 import '../../settings/data/settings_storage.dart';
 import '../../../core/utils/logger.dart';
-import '../data/chat_repository.dart';
-
 import '../../../core/constants/app_constants.dart';
-
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-  final List<String> attachmentPaths;
-
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-    this.attachmentPaths = const [],
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'text': text,
-      'isUser': isUser,
-      'timestamp': timestamp.toIso8601String(),
-      'attachmentPaths': attachmentPaths,
-    };
-  }
-
-  factory ChatMessage.fromMap(Map<String, dynamic> map) {
-    return ChatMessage(
-      text: map['text'],
-      isUser: map['isUser'],
-      timestamp: DateTime.parse(map['timestamp']),
-      attachmentPaths: List<String>.from(map['attachmentPaths'] ?? []),
-    );
-  }
-}
-
-class ChatState {
-  final List<ChatMessage> messages;
-  final bool isLoading;
-  final String? error;
-  final bool isPrivateMode;
-
-  ChatState({
-    this.messages = const [],
-    this.isLoading = false,
-    this.error,
-    this.isPrivateMode = false,
-  });
-
-  ChatState copyWith({
-    List<ChatMessage>? messages,
-    bool? isLoading,
-    String? error,
-    bool? isPrivateMode,
-  }) {
-    return ChatState(
-      messages: messages ?? this.messages,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      isPrivateMode: isPrivateMode ?? this.isPrivateMode,
-    );
-  }
-}
+import '../data/chat_repository.dart';
+import '../data/models/chat_message.dart';
+import '../utils/file_type_helper.dart';
+import '../utils/mock_responses.dart';
+import 'state/chat_state.dart';
 
 class ChatController extends Notifier<ChatState> {
   late final ChatRepository _repository;
@@ -77,6 +22,8 @@ class ChatController extends Notifier<ChatState> {
   late final ConnectivityService _connectivityService;
   late final ConfigStorage _configStorage;
   late final SettingsStorage _settingsStorage;
+  late final VisionService _visionService;
+  late final DocumentService _documentService;
 
   @override
   ChatState build() {
@@ -86,6 +33,8 @@ class ChatController extends Notifier<ChatState> {
     _connectivityService = ref.read(connectivityServiceProvider);
     _configStorage = ref.read(configStorageProvider);
     _settingsStorage = ref.read(settingsStorageProvider);
+    _visionService = ref.read(visionServiceProvider);
+    _documentService = ref.read(documentServiceProvider);
 
     // Load history and return initial state with messages
     final history = _historyStorage.getHistory();
@@ -156,11 +105,34 @@ class ChatController extends Notifier<ChatState> {
         await Future.delayed(
           const Duration(seconds: 2),
         ); // Simulate network delay
-        response = _getMockResponse(text);
+        response = MockResponses.getMockResponse(text, state.messages.length);
       } else {
-        // Check connectivity for cloud mode
+        // Check connectivity for cloud mode (not needed for edge vision)
         final isLocal = _configStorage.getIsLocal();
-        if (!isLocal) {
+        final visionMode = _settingsStorage.getVisionPipelineMode();
+
+        final docAttachments = attachmentPaths
+            .where(
+              (path) =>
+                  FileTypeHelper.isPdfFile(path) ||
+                  FileTypeHelper.isTextFile(path),
+            )
+            .toList();
+        String contextText = text;
+        if (docAttachments.isNotEmpty) {
+          final docContent =
+              await _documentService.extractText(docAttachments.first);
+          contextText =
+              'Document content:\n$docContent\n\nUser question: $text';
+        }
+
+        // Check for image attachments
+        final imageAttachments = attachmentPaths
+            .where((path) => FileTypeHelper.isImageFile(path))
+            .toList();
+
+        // Only check connectivity if not local and not using edge vision
+        if (!isLocal && !(imageAttachments.isNotEmpty && visionMode == 'edge')) {
           final hasInternet = await _connectivityService.hasInternetConnection;
           if (!hasInternet) {
             throw Exception(
@@ -169,11 +141,20 @@ class ChatController extends Notifier<ChatState> {
           }
         }
 
-        final systemPrompt = _settingsStorage.getSystemPrompt();
-        response = await _repository.generateText(
-          text,
-          systemPrompt: systemPrompt,
-        );
+        if (imageAttachments.isNotEmpty) {
+          // Use vision service for image analysis
+          response = await _visionService.analyzeImage(
+            imageAttachments.first,
+            text.isEmpty ? 'Describe this image' : text,
+          );
+        } else {
+          // Text-only: use chat generation
+          final systemPrompt = _settingsStorage.getSystemPrompt();
+          response = await _repository.generateText(
+            contextText,
+            systemPrompt: systemPrompt,
+          );
+        }
       }
 
       final aiMessage = ChatMessage(
@@ -204,216 +185,35 @@ class ChatController extends Notifier<ChatState> {
     state = state.copyWith(messages: []);
   }
 
-  // 🧪 Mock responses for test mode
-  String _getMockResponse(String prompt) {
-    switch (TestConfig.mockResponseType) {
-      case 'plain':
-        return 'This is a simple plain text response without any formatting. You can use this to test basic message rendering and scrolling behavior.';
-
-      case 'code':
-        return '''Here's a code snippet example:
-
-```dart
-void main() {
-  print("Hello, Parallax!");
-}
-```
-
-You can test the **Copy Code** button by clicking on it. The syntax highlighting should work once you connect to the real backend.
-
-Here's another snippet:
-
-```python
-def greet(name):
-    return f"Hello, {name}!"
-
-print(greet("World"))
-```
-
-And a longer JavaScript example:
-
-```javascript
-class UserManager {
-  constructor() {
-    this.users = [];
-  }
-
-  addUser(name, email) {
-    const user = {
-      id: this.users.length + 1,
-      name: name,
-      email: email,
-      createdAt: new Date()
-    };
-    this.users.push(user);
-    return user;
-  }
-
-  findUser(id) {
-    return this.users.find(u => u.id === id);
-  }
-
-  getAllUsers() {
-    return this.users;
-  }
-}
-
-// Usage example
-const manager = new UserManager();
-manager.addUser("John Doe", "john@example.com");
-manager.addUser("Jane Smith", "jane@example.com");
-
-console.log(manager.getAllUsers());
-```
-
-Try copying these code blocks!''';
-
-      case 'markdown':
-        return '''Let me show you **markdown formatting**:
-
-## Heading 2
-### Heading 3
-
-**Bold text** and *italic text* work great.
-
-> This is a blockquote
-> It can span multiple lines
-
-Here's a list:
-1. First item
-2. Second item
-3. Third item
-
-And an unordered list:
-- Item one
-- Item two
-- Item three
-
-You can also use `inline code` like this.''';
-
-      case 'mixed':
-        return '''# Mixed Content Response
-
-This response contains **everything** to test all features at once!
-
-## Code Example
-
-```javascript
-const greeting = "Hello, World!";
-console.log(greeting);
-```
-
-## Formatted Text
-
-Here's some **bold**, *italic*, and `inline code`.
-
-> Important: This is a blockquote with useful information.
-
-## Lists
-
-1. **First feature** - Copy code button
-2. **Second feature** - Copy all button  
-3. **Third feature** - Markdown rendering
-
-Try the copy buttons! Click "Copy Code" on the snippet or "Copy All" at the bottom.''';
-
-      case 'long':
-        return '''# Long Response for Scroll Testing
-
-This is a very long response to test scrolling behavior and how the UI handles extensive content.
-
-## Section 1: Introduction
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-## Section 2: Code Examples
-
-Here's a comprehensive code example:
-
-```dart
-import 'package:flutter/material.dart';
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: MyHomePage(),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Counter App'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text('You have pushed the button this many times:'),
-            Text(
-              '\$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ),
-    );
-  }
-}
-```
-
-## Section 3: Features
-
-1. **Copy functionality** - Test the copy buttons
-2. **Markdown rendering** - See how it formats
-3. **Scroll behavior** - Long content scrolling
-4. **Attachment support** - Try adding images
-
-## Section 4: Conclusion
-
-This long response helps you verify that:
-- The chat scrolls smoothly
-- Code blocks are properly highlighted  
-- Copy buttons work correctly
-- The UI remains responsive with long content
-
-**Try scrolling** through this message and testing all the interactive elements!''';
-
-      default:
-        // Cycle through variations if type not recognized
-        final responses = [
-          'This is a **test response** from the AI assistant.',
-          'Great! The UI is working perfectly. Try different features! 🚀',
-          'You can change `TestConfig.mockResponseType` in `app_constants.dart` to test different response types like: `plain`, `code`, `markdown`, `mixed`, or `long`.',
-        ];
-        return responses[state.messages.length % responses.length];
+  Future<void> loadArchivedSession(String sessionId) async {
+    final session = _archiveStorage.getSessionById(sessionId);
+    if (session == null) {
+      logger.e('Session not found: $sessionId');
+      return;
     }
+
+    if (state.messages.isNotEmpty && !state.isPrivateMode) {
+      try {
+        final messageMaps = state.messages.map((m) => m.toMap()).toList();
+        await _archiveStorage.archiveSession(messages: messageMaps);
+      } catch (e) {
+        logger.e('Failed to archive current session: $e');
+      }
+    }
+
+    final messages = session.messages.map((m) => ChatMessage.fromMap(m)).toList();
+
+    await _historyStorage.clearHistory();
+    for (final msg in messages) {
+      await _historyStorage.saveMessage(msg.toMap());
+    }
+
+    state = state.copyWith(
+      messages: messages,
+      isPrivateMode: false,
+      error: null,
+    );
+    logger.i('Loaded archived session: ${session.title}');
   }
 }
 

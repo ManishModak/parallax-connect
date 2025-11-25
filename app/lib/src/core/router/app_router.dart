@@ -93,13 +93,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.splash,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Splash');
-          return CustomTransitionPage(
+          return _buildFadeTransition(
             key: state.pageKey,
             child: const SplashScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
           );
         },
       ),
@@ -107,13 +103,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.config,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Config');
-          return CustomTransitionPage(
+          return _buildFadeTransition(
             key: state.pageKey,
             child: const ConfigScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
           );
         },
       ),
@@ -121,13 +113,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.chat,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Chat');
-          return CustomTransitionPage(
+          return _buildFadeTransition(
             key: state.pageKey,
             child: const ChatScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
           );
         },
       ),
@@ -135,24 +123,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.history,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to History');
-          return CustomTransitionPage(
+          return _buildSlideTransition(
             key: state.pageKey,
             child: const HistoryScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  // Slide from left
-                  const begin = Offset(-1.0, 0.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeOutCubic;
-                  var tween = Tween(
-                    begin: begin,
-                    end: end,
-                  ).chain(CurveTween(curve: curve));
-                  return SlideTransition(
-                    position: animation.drive(tween),
-                    child: child,
-                  );
-                },
           );
         },
       ),
@@ -160,13 +133,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Settings');
-          return CustomTransitionPage(
+          return _buildFadeTransition(
             key: state.pageKey,
             child: const SettingsScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
           );
         },
       ),

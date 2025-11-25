@@ -23,7 +23,7 @@ Logger _createLogger() {
       lineLength: 80,
       colors: true,
       printEmojis: true,
-      printTime: true, // Show timestamps in debug mode
+      dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
       excludeBox: {Level.debug: false, Level.trace: false},
     ),
     filter: DevelopmentFilter(),

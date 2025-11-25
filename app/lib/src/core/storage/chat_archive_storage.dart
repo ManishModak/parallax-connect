@@ -3,45 +3,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../utils/logger.dart';
+import 'models/chat_session.dart';
 
-/// Model representing an archived chat session
-class ChatSession {
-  final String id;
-  final String title;
-  final List<Map<String, dynamic>> messages;
-  final DateTime timestamp;
-  final int messageCount;
-
-  ChatSession({
-    required this.id,
-    required this.title,
-    required this.messages,
-    required this.timestamp,
-    required this.messageCount,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'messages': messages,
-      'timestamp': timestamp.toIso8601String(),
-      'messageCount': messageCount,
-    };
-  }
-
-  factory ChatSession.fromMap(Map<String, dynamic> map) {
-    return ChatSession(
-      id: map['id'],
-      title: map['title'],
-      messages: List<Map<String, dynamic>>.from(
-        (map['messages'] as List).map((e) => Map<String, dynamic>.from(e)),
-      ),
-      timestamp: DateTime.parse(map['timestamp']),
-      messageCount: map['messageCount'],
-    );
-  }
-}
+export 'models/chat_session.dart';
 
 /// Storage service for archived chat sessions
 class ChatArchiveStorage {

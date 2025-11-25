@@ -8,10 +8,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/storage/config_storage.dart';
-
 import '../../../core/constants/app_constants.dart';
-
 import 'package:flutter_svg/flutter_svg.dart';
+import 'widgets/splash_branding.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -109,40 +108,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             bottom: 40,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Powered by Gradient Parallax',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Image.asset(
-                      'assets/images/gradient_logo.png',
-                      width: 20,
-                      height: 20,
-                    ),
-                  ],
-                ),
-
-                // Gradient Logo
-                const SizedBox(height: 12),
-
-                Text(
-                  'Hosted by You. Accessible Anywhere.',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: AppColors.accent,
-                  ),
-                ),
-              ],
-            ).animate().fadeIn(delay: 1000.ms, duration: 800.ms),
+            child: const SplashBranding()
+                .animate()
+                .fadeIn(delay: 1000.ms, duration: 800.ms),
           ),
         ],
       ),

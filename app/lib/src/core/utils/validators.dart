@@ -84,6 +84,35 @@ class Validators {
       caseSensitive: false,
     );
 
-    return localhostPattern.hasMatch(url);
+    if (localhostPattern.hasMatch(url)) {
+      return true;
+    }
+
+    return isValidLanUrl(url);
+  }
+
+  /// Validate LAN IP (192.168.x.x or 10.x.x.x) with optional port/path
+  static bool isValidLanUrl(String url) {
+    if (url.isEmpty) return false;
+
+    final normalized = url.startsWith('http://') || url.startsWith('https://')
+        ? url
+        : 'http://$url';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) return false;
+
+    final lanPattern = RegExp(
+      r'^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})$',
+    );
+
+    if (!lanPattern.hasMatch(uri.host)) {
+      return false;
+    }
+
+    if (uri.hasPort && (uri.port <= 0 || uri.port > 65535)) {
+      return false;
+    }
+
+    return true;
   }
 }

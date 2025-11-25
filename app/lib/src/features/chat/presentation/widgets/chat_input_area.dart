@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/haptics_helper.dart';
+import '../../utils/file_type_helper.dart';
 import 'attachment_menu.dart';
 
 class ChatInputArea extends ConsumerStatefulWidget {
@@ -169,12 +170,7 @@ class _ChatInputAreaState extends ConsumerState<ChatInputArea> {
                         const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final path = _selectedAttachments[index];
-                      // Simple check for image extension
-                      final isImage =
-                          path.toLowerCase().endsWith('.jpg') ||
-                          path.toLowerCase().endsWith('.jpeg') ||
-                          path.toLowerCase().endsWith('.png') ||
-                          path.toLowerCase().endsWith('.webp');
+                      final isImage = FileTypeHelper.isImageFile(path);
 
                       return Stack(
                         children: [
@@ -216,7 +212,7 @@ class _ChatInputAreaState extends ConsumerState<ChatInputArea> {
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: AppColors.background.withOpacity(0.6),
+                                  color: AppColors.background.withValues(alpha: 0.6),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -265,7 +261,7 @@ class _ChatInputAreaState extends ConsumerState<ChatInputArea> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight.withOpacity(0.5),
+                        color: AppColors.surfaceLight.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(

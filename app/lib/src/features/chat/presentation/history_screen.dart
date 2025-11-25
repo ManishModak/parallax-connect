@@ -5,12 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/storage/chat_archive_storage.dart';
 import '../../../core/utils/haptics_helper.dart';
 import 'chat_controller.dart';
+import 'widgets/history_item_tile.dart';
+import 'widgets/new_chat_button.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -24,6 +28,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _searchQuery = '';
   bool _isSearching = false;
   Timer? _debounceTimer;
+  List<ChatSession> _sessions = [];
+  Map<String, List<ChatSession>> _categorizedSessions = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSessions();
+  }
 
   @override
   void dispose() {
@@ -32,35 +44,96 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     super.dispose();
   }
 
-  // Mock data - categorized by time
-  // TODO: Replace with real data from ChatHistoryStorage/Repository
-  final Map<String, List<Map<String, String>>> _categorizedChats = {
-    'Today': [
-      {'title': 'Project Planning', 'time': '2 mins ago'},
-      {'title': 'Flutter Architecture', 'time': '1 hour ago'},
-    ],
-    'Yesterday': [
-      {'title': 'Dart Streams', 'time': 'Yesterday 3:45 PM'},
-    ],
-    'Previous 7 Days': [
-      {'title': 'AI Integration', 'time': '2 days ago'},
-      {'title': 'UI Design', 'time': '3 days ago'},
-      {'title': 'Code Review', 'time': '5 days ago'},
-    ],
-    'Older': [
-      {'title': 'Database Schema', 'time': '2 weeks ago'},
-      {'title': 'API Design', 'time': '1 month ago'},
-    ],
-  };
+  void _loadSessions() {
+    final archiveStorage = ref.read(chatArchiveStorageProvider);
+    final sessions = _searchQuery.isEmpty
+        ? archiveStorage.getArchivedSessions()
+        : archiveStorage.searchSessions(_searchQuery);
+
+    setState(() {
+      _sessions = sessions;
+      if (_searchQuery.isEmpty) {
+        _categorizedSessions = _categorizeSessions(sessions);
+      }
+    });
+  }
+
+  Map<String, List<ChatSession>> _categorizeSessions(
+    List<ChatSession> sessions,
+  ) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final weekAgo = today.subtract(const Duration(days: 7));
+
+    final categorized = <String, List<ChatSession>>{
+      'Today': [],
+      'Yesterday': [],
+      'Previous 7 Days': [],
+      'Older': [],
+    };
+
+    for (final session in sessions) {
+      final sessionDate = DateTime(
+        session.timestamp.year,
+        session.timestamp.month,
+        session.timestamp.day,
+      );
+
+      if (sessionDate == today) {
+        categorized['Today']!.add(session);
+      } else if (sessionDate == yesterday) {
+        categorized['Yesterday']!.add(session);
+      } else if (sessionDate.isAfter(weekAgo)) {
+        categorized['Previous 7 Days']!.add(session);
+      } else {
+        categorized['Older']!.add(session);
+      }
+    }
+
+    // Remove empty categories
+    categorized.removeWhere((key, value) => value.isEmpty);
+    return categorized;
+  }
+
+  String _formatRelativeTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'min' : 'mins'} ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday ${DateFormat('h:mm a').format(timestamp)}';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+    } else if (difference.inDays < 365) {
+      final months = (difference.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
+    } else {
+      return DateFormat('MMM dd, yyyy').format(timestamp);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Reload sessions when search query changes
+    if (_searchQuery.isNotEmpty) {
+      _loadSessions();
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Header with close and settings
+            // Header with search and close
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
               child: Row(
@@ -72,7 +145,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: AppColors.secondary.withOpacity(0.1),
+                          color: AppColors.secondary.withValues(alpha: 0.1),
                         ),
                       ),
                       child: TextField(
@@ -84,6 +157,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                               _searchQuery = '';
                               _isSearching = false;
                             });
+                            _loadSessions();
                             return;
                           }
                           setState(() {
@@ -96,6 +170,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 _searchQuery = value.toLowerCase();
                                 _isSearching = false;
                               });
+                              _loadSessions();
                             },
                           );
                         },
@@ -106,12 +181,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         decoration: InputDecoration(
                           hintText: 'Search chat history',
                           hintStyle: GoogleFonts.inter(
-                            color: AppColors.secondary.withOpacity(0.5),
+                            color: AppColors.secondary.withValues(alpha: 0.5),
                             fontSize: 14,
                           ),
                           prefixIcon: Icon(
                             LucideIcons.search,
-                            color: AppColors.secondary.withOpacity(0.5),
+                            color: AppColors.secondary.withValues(alpha: 0.5),
                             size: 20,
                           ),
                           suffixIcon: _searchController.text.isNotEmpty
@@ -125,7 +200,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             strokeWidth: 2,
                                             valueColor:
                                                 AlwaysStoppedAnimation<Color>(
-                                                  AppColors.primary.withOpacity(
+                                                  AppColors.primary.withValues(alpha: 
                                                     0.7,
                                                   ),
                                                 ),
@@ -136,7 +211,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         icon: Icon(
                                           LucideIcons.x,
                                           color: AppColors.secondary
-                                              .withOpacity(0.5),
+                                              .withValues(alpha: 0.5),
                                           size: 18,
                                         ),
                                         tooltip: 'Clear search',
@@ -150,6 +225,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             _searchQuery = '';
                                             _isSearching = false;
                                           });
+                                          _loadSessions();
                                         },
                                       )
                               : null,
@@ -163,7 +239,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(LucideIcons.x, color: AppColors.secondary),
+                    icon: const Icon(
+                      LucideIcons.x,
+                      color: AppColors.secondary,
+                    ),
                     tooltip: 'Close history',
                     onPressed: () {
                       ref.read(hapticsHelperProvider).triggerHaptics();
@@ -175,60 +254,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
 
             // New Chat Button
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      ref.read(hapticsHelperProvider).triggerHaptics();
-                      ref.read(chatControllerProvider.notifier).startNewChat();
-                      context.pop();
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            'assets/icons/new_chat.svg',
-                            width: 20,
-                            height: 20,
-                            colorFilter: const ColorFilter.mode(
-                              AppColors.background,
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'New Chat',
-                            style: GoogleFonts.inter(
-                              color: AppColors.background,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            const NewChatButton(),
 
             // Chats List
             Expanded(
@@ -242,7 +268,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           Text(
                             'Searching...',
                             style: GoogleFonts.inter(
-                              color: AppColors.secondary.withOpacity(0.6),
+                              color: AppColors.secondary.withValues(alpha: 0.6),
                               fontSize: 14,
                             ),
                           ),
@@ -311,74 +337,30 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Widget _buildCategorizedList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _categorizedChats.length,
-      itemBuilder: (context, index) {
-        final category = _categorizedChats.keys.elementAt(index);
-        final chats = _categorizedChats[category]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4, top: 8, bottom: 12),
-              child: Text(
-                category,
-                style: GoogleFonts.inter(
-                  color: AppColors.secondary.withOpacity(0.7),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
-                  textBaseline: TextBaseline.alphabetic,
-                ),
-              ),
-            ),
-            ...chats.map(
-              (chat) => _buildHistoryItem(
-                context,
-                chat['title']!,
-                chat['time']!,
-                index == 0 && chats.indexOf(chat) == 0, // First item active
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSearchResults() {
-    final allChats = _categorizedChats.values
-        .expand((chats) => chats)
-        .where((chat) => chat['title']!.toLowerCase().contains(_searchQuery))
-        .toList();
-
-    if (allChats.isEmpty) {
+    if (_categorizedSessions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              LucideIcons.searchX,
+              LucideIcons.messageSquare,
               size: 48,
-              color: AppColors.secondary.withOpacity(0.3),
+              color: AppColors.secondary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
-              'No chats found',
+              'No chat history',
               style: GoogleFonts.inter(
-                color: AppColors.secondary.withOpacity(0.6),
+                color: AppColors.secondary.withValues(alpha: 0.6),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Try searching with different keywords',
+              'Start a new chat to see it here',
               style: GoogleFonts.inter(
-                color: AppColors.secondary.withOpacity(0.4),
+                color: AppColors.secondary.withValues(alpha: 0.4),
                 fontSize: 13,
               ),
             ),
@@ -389,178 +371,97 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: allChats.length,
+      itemCount: _categorizedSessions.length,
       itemBuilder: (context, index) {
-        final chat = allChats[index];
-        return _buildHistoryItem(context, chat['title']!, chat['time']!, false);
+        final category = _categorizedSessions.keys.elementAt(index);
+        final sessions = _categorizedSessions[category]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 8, bottom: 12),
+              child: Text(
+                category,
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary.withValues(alpha: 0.7),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                  textBaseline: TextBaseline.alphabetic,
+                ),
+              ),
+            ),
+            ...sessions.map(
+              (session) => HistoryItemTile(
+                title: session.title,
+                time: _formatRelativeTime(session.timestamp),
+                isActive: index == 0 && sessions.indexOf(session) == 0,
+                onTap: () {
+                  ref
+                      .read(chatControllerProvider.notifier)
+                      .loadArchivedSession(session.id);
+                  context.pop();
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
       },
     );
   }
 
-  Widget _buildHistoryItem(
-    BuildContext context,
-    String title,
-    String time,
-    bool isActive,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: isActive
-            ? AppColors.surface
-            : AppColors.surface.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(14),
-        border: isActive
-            ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1.5)
-            : Border.all(
-                color: AppColors.secondary.withOpacity(0.05),
-                width: 1,
+  Widget _buildSearchResults() {
+    if (_sessions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.searchX,
+              size: 48,
+              color: AppColors.secondary.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No chats found',
+              style: GoogleFonts.inter(
+                color: AppColors.secondary.withValues(alpha: 0.6),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try searching with different keywords',
+              style: GoogleFonts.inter(
+                color: AppColors.secondary.withValues(alpha: 0.4),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _sessions.length,
+      itemBuilder: (context, index) {
+        final session = _sessions[index];
+        return HistoryItemTile(
+          title: session.title,
+          time: _formatRelativeTime(session.timestamp),
+          isActive: false,
           onTap: () {
-            ref.read(hapticsHelperProvider).triggerHaptics();
-            // TODO: Load this chat session
+            ref
+                .read(chatControllerProvider.notifier)
+                .loadArchivedSession(session.id);
             context.pop();
           },
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.inter(
-                          color: isActive
-                              ? AppColors.primary
-                              : AppColors.secondary,
-                          fontSize: 15,
-                          fontWeight: isActive
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          letterSpacing: 0.1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        time,
-                        style: GoogleFonts.inter(
-                          color: AppColors.secondary.withOpacity(0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    LucideIcons.moreVertical,
-                    size: 18,
-                    color: AppColors.secondary.withOpacity(0.5),
-                  ),
-                  color: AppColors.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: AppColors.secondary.withOpacity(0.1),
-                    ),
-                  ),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'rename',
-                      child: Row(
-                        children: [
-                          Icon(
-                            LucideIcons.edit2,
-                            size: 16,
-                            color: AppColors.secondary,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Rename',
-                            style: GoogleFonts.inter(
-                              color: AppColors.secondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(
-                            LucideIcons.trash2,
-                            size: 16,
-                            color: AppColors.error.withOpacity(0.8),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Delete',
-                            style: GoogleFonts.inter(
-                              color: AppColors.error.withOpacity(0.8),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      // TODO: Implement delete functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Delete feature coming soon',
-                            style: GoogleFonts.inter(color: AppColors.primary),
-                          ),
-                          backgroundColor: AppColors.surface,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color: AppColors.secondary.withOpacity(0.2),
-                            ),
-                          ),
-                        ),
-                      );
-                    } else if (value == 'rename') {
-                      // TODO: Implement rename functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Rename feature coming soon',
-                            style: GoogleFonts.inter(color: AppColors.primary),
-                          ),
-                          backgroundColor: AppColors.surface,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color: AppColors.secondary.withOpacity(0.2),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

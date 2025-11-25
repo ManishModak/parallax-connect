@@ -43,7 +43,7 @@ class ArchivedSessionDetailScreen extends StatelessWidget {
               color: AppColors.surface,
               border: Border(
                 bottom: BorderSide(
-                  color: AppColors.secondary.withOpacity(0.2),
+                  color: AppColors.secondary.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),
@@ -100,7 +100,7 @@ class ArchivedSessionDetailScreen extends StatelessWidget {
               color: AppColors.surface,
               border: Border(
                 top: BorderSide(
-                  color: AppColors.secondary.withOpacity(0.2),
+                  color: AppColors.secondary.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),

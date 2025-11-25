@@ -26,38 +26,37 @@ class SettingsStorage {
   }
 
   // Vision Pipeline Mode
-  // Values: 'edge', 'multimodal'
-  // TODO: Vision Pipeline integration - currently settings are stored but not used by the chat/vision processing pipeline
+  // Values: 'edge' (on-device ML Kit), 'multimodal' (server-side vision)
   Future<void> setVisionPipelineMode(String mode) async {
     await _prefs.setString(_keyVisionPipelineMode, mode);
   }
 
   /// Get vision pipeline mode
-  /// TODO: Vision Pipeline integration - currently settings are stored but not used by the chat/vision processing pipeline
+  /// Returns 'edge' for on-device ML Kit processing, 'multimodal' for server-side
   String getVisionPipelineMode() {
     return _prefs.getString(_keyVisionPipelineMode) ?? 'edge';
   }
 
   // Smart Context Window
-  // TODO: Document Strategy integration - Smart Context and Max Context settings need to be integrated with PDF/document processing
+  // Controls whether large documents are chunked automatically before sending to the server
   Future<void> setSmartContextEnabled(bool enabled) async {
     await _prefs.setBool(_keySmartContextEnabled, enabled);
   }
 
   /// Get smart context enabled
-  /// TODO: Document Strategy integration - Smart Context and Max Context settings need to be integrated with PDF/document processing
+  /// Returns true when PDF/document ingestion should chunk automatically
   bool getSmartContextEnabled() {
     return _prefs.getBool(_keySmartContextEnabled) ?? true;
   }
 
   // Max Context Injection
-  // TODO: Document Strategy integration - Smart Context and Max Context settings need to be integrated with PDF/document processing
+  // Limits how many tokens from a document can be sent to the Parallax server at once
   Future<void> setMaxContextTokens(int tokens) async {
     await _prefs.setInt(_keyMaxContextTokens, tokens);
   }
 
   /// Get max context tokens
-  /// TODO: Document Strategy integration - Smart Context and Max Context settings need to be integrated with PDF/document processing
+  /// Used by DocumentService to cap each request payload
   int getMaxContextTokens() {
     return _prefs.getInt(_keyMaxContextTokens) ?? 4096;
   }

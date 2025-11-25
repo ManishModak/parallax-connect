@@ -15,49 +15,50 @@ class NetworkException implements Exception {
 
 /// Exception for connection timeouts
 class ConnectionTimeoutException extends NetworkException {
-  ConnectionTimeoutException([String message = 'Connection timeout'])
-    : super(message);
+  ConnectionTimeoutException([super.message = 'Connection timeout']);
 }
 
 /// Exception for receive timeouts
 class ReceiveTimeoutException extends NetworkException {
-  ReceiveTimeoutException([String message = 'Response timeout'])
-    : super(message);
+  ReceiveTimeoutException([super.message = 'Response timeout']);
 }
 
 /// Exception for send timeouts
 class SendTimeoutException extends NetworkException {
-  SendTimeoutException([String message = 'Request send timeout'])
-    : super(message);
+  SendTimeoutException([super.message = 'Request send timeout']);
 }
 
 /// Exception for no internet connection
 class NoInternetException extends NetworkException {
-  NoInternetException([String message = 'No internet connection'])
-    : super(message);
+  NoInternetException([super.message = 'No internet connection']);
 }
 
 /// Exception for server errors (5xx)
 class ServerException extends NetworkException {
-  ServerException(String message, {int? statusCode, dynamic data})
-    : super(message, statusCode: statusCode, data: data);
+  ServerException(
+    super.message, {
+    super.statusCode,
+    super.data,
+  });
 }
 
 /// Exception for client errors (4xx)
 class ClientException extends NetworkException {
-  ClientException(String message, {int? statusCode, dynamic data})
-    : super(message, statusCode: statusCode, data: data);
+  ClientException(
+    super.message, {
+    super.statusCode,
+    super.data,
+  });
 }
 
 /// Exception for parse/serialization errors
 class ParseException extends NetworkException {
-  ParseException([String message = 'Failed to parse response'])
-    : super(message);
+  ParseException([super.message = 'Failed to parse response']);
 }
 
 /// Exception for cancelled requests
 class CancelledException extends NetworkException {
-  CancelledException([String message = 'Request cancelled']) : super(message);
+  CancelledException([super.message = 'Request cancelled']);
 }
 
 /// Helper to convert Dio errors to custom exceptions

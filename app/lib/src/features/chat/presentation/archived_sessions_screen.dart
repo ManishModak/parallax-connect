@@ -43,35 +43,42 @@ class _ArchivedSessionsScreenState
     });
   }
 
-  Future<void> _deleteSession(String sessionId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Session'),
-        content: const Text('Are you sure you want to delete this session?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+  Future<bool> _showDeleteConfirmation() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Session'),
+            content: const Text(
+              'Are you sure you want to delete this session?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+        ) ??
+        false;
+  }
 
-    if (confirmed == true && mounted) {
+  Future<void> _deleteSession(String sessionId) async {
+    final confirmed = await _showDeleteConfirmation();
+
+    if (confirmed && mounted) {
       final archiveStorage = ref.read(chatArchiveStorageProvider);
       await archiveStorage.deleteSession(sessionId);
       _loadSessions();
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Session deleted')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session deleted')),
+        );
       }
     }
   }
@@ -177,28 +184,7 @@ class _ArchivedSessionsScreenState
           child: const Icon(LucideIcons.trash2, color: Colors.white),
         ),
         onDismissed: (_) => _deleteSession(session.id),
-        confirmDismiss: (_) async {
-          return await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Delete Session'),
-              content: const Text(
-                'Are you sure you want to delete this session?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Delete'),
-                ),
-              ],
-            ),
-          );
-        },
+        confirmDismiss: (_) => _showDeleteConfirmation(),
         child: InkWell(
           onTap: () {
             Navigator.push(

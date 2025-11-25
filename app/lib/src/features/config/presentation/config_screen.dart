@@ -3,7 +3,6 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:go_router/go_router.dart';
@@ -16,6 +15,9 @@ import '../../../core/services/connectivity_service.dart';
 import '../../../core/storage/config_storage.dart';
 import '../../../core/utils/haptics_helper.dart';
 import '../../chat/data/chat_repository.dart';
+import 'widgets/connection_mode_toggle.dart';
+import 'widgets/qr_scanner_sheet.dart';
+import 'widgets/setup_instructions_card.dart';
 
 class ConfigScreen extends ConsumerStatefulWidget {
   const ConfigScreen({super.key});
@@ -62,7 +64,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
         context: context,
         isScrollControlled: true,
         backgroundColor: AppColors.background,
-        builder: (_) => const _QrScannerSheet(),
+        builder: (_) => const QrScannerSheet(),
       );
 
       if (!mounted || scannedValue == null) return;
@@ -174,8 +176,51 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
     );
   }
 
+  Future<void> _openSetupGuide(HapticsHelper hapticsHelper) async {
+    hapticsHelper.triggerHaptics();
+    final url = Uri.parse(
+      'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
+    );
+    try {
+      final launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        _showErrorSnackBar(
+          'Unable to open the setup guide. Copy the URL manually.',
+          LucideIcons.alertTriangle,
+        );
+      }
+    } on PlatformException catch (error, stackTrace) {
+      developer.log(
+        'Failed to launch setup guide',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      _showErrorSnackBar(
+        'Unable to open the setup guide. Copy the URL manually.',
+        LucideIcons.alertTriangle,
+      );
+    }
+  }
+
+  Future<void> _copySetupLink(HapticsHelper hapticsHelper) async {
+    hapticsHelper.triggerHaptics();
+    await Clipboard.setData(
+      const ClipboardData(
+        text:
+            'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
+      ),
+    );
+    if (!mounted) return;
+    _showSuccessSnackBar('Server setup link copied to clipboard.');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hapticsHelper = ref.read(hapticsHelperProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -203,72 +248,10 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
               const SizedBox(height: 12),
 
               // Toggle
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.accent),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          ref.read(hapticsHelperProvider).triggerHaptics();
-                          setState(() => _isLocal = false);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: !_isLocal
-                                ? AppColors.accent
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Cloud (Ngrok)',
-                              style: GoogleFonts.inter(
-                                color: !_isLocal
-                                    ? AppColors.primary
-                                    : AppColors.secondary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          ref.read(hapticsHelperProvider).triggerHaptics();
-                          setState(() => _isLocal = true);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _isLocal
-                                ? AppColors.accent
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Local (LAN)',
-                              style: GoogleFonts.inter(
-                                color: _isLocal
-                                    ? AppColors.primary
-                                    : AppColors.secondary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              ConnectionModeToggle(
+                isLocal: _isLocal,
+                onModeChanged: (value) => setState(() => _isLocal = value),
+                onHapticFeedback: hapticsHelper.triggerHaptics,
               ),
               const SizedBox(height: 8),
 
@@ -291,7 +274,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       icon: const Icon(LucideIcons.scanLine),
                       color: AppColors.secondary,
                       onPressed: () {
-                        ref.read(hapticsHelperProvider).triggerHaptics();
+                        hapticsHelper.triggerHaptics();
                         _scanQrCode();
                       },
                     ),
@@ -302,7 +285,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       icon: const Icon(LucideIcons.clipboardPaste),
                       color: AppColors.secondary,
                       onPressed: () async {
-                        ref.read(hapticsHelperProvider).triggerHaptics();
+                        hapticsHelper.triggerHaptics();
                         final clipboard = await Clipboard.getData(
                           Clipboard.kTextPlain,
                         );
@@ -406,7 +389,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                     ),
                     color: AppColors.secondary,
                     onPressed: () {
-                      ref.read(hapticsHelperProvider).triggerHaptics();
+                      hapticsHelper.triggerHaptics();
                       setState(() {
                         _isPasswordVisible = !_isPasswordVisible;
                       });
@@ -417,195 +400,10 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
 
               const SizedBox(height: 24),
 
-              // Instructions Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _isLocal
-                        ? AppColors.modeLocal.withOpacity(0.3)
-                        : AppColors.modeCloud.withOpacity(0.3),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _isLocal ? LucideIcons.info : LucideIcons.cloud,
-                          color: _isLocal
-                              ? AppColors.modeLocal
-                              : AppColors.modeCloud,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isLocal ? 'Local Mode Setup' : 'Cloud Mode Setup',
-                          style: GoogleFonts.inter(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'To connect, set up the server on your computer first.',
-                      style: GoogleFonts.inter(
-                        color: AppColors.secondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              ref.read(hapticsHelperProvider).triggerHaptics();
-                              final url = Uri.parse(
-                                'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
-                              );
-                              try {
-                                final launched = await launchUrl(
-                                  url,
-                                  mode: LaunchMode.externalApplication,
-                                );
-                                if (!launched && mounted) {
-                                  _showErrorSnackBar(
-                                    'Unable to open the setup guide. Copy the URL manually.',
-                                    LucideIcons.alertTriangle,
-                                  );
-                                }
-                              } on PlatformException catch (error, stackTrace) {
-                                developer.log(
-                                  'Failed to launch setup guide',
-                                  error: error,
-                                  stackTrace: stackTrace,
-                                );
-                                if (!mounted) return;
-                                _showErrorSnackBar(
-                                  'Unable to open the setup guide. Copy the URL manually.',
-                                  LucideIcons.alertTriangle,
-                                );
-                              }
-                            },
-                            icon: const Icon(
-                              LucideIcons.externalLink,
-                              size: 16,
-                            ),
-                            label: Text(
-                              'View Server Setup Guide',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              side: BorderSide(color: AppColors.primary),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Tooltip(
-                          message: 'Copy guide link',
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              ref.read(hapticsHelperProvider).triggerHaptics();
-                              await Clipboard.setData(
-                                const ClipboardData(
-                                  text:
-                                      'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
-                                ),
-                              );
-                              if (!mounted) return;
-                              _showSuccessSnackBar(
-                                'Server setup link copied to clipboard.',
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              side: BorderSide(color: AppColors.primary),
-                              minimumSize: const Size(48, 48),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                            child: const Icon(LucideIcons.copy),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'After the server starts, copy the URL shown in the terminal '
-                      'or scan the QR code from that terminal to paste it here.',
-                      style: GoogleFonts.inter(
-                        color: AppColors.secondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _isLocal
-                            ? AppColors.modeLocal.withOpacity(0.1)
-                            : AppColors.modeCloud.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _isLocal ? LucideIcons.wifi : LucideIcons.globe,
-                                size: 16,
-                                color: _isLocal
-                                    ? AppColors.modeLocalLight
-                                    : AppColors.modeCloudLight,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isLocal ? 'Local Mode' : 'Cloud Mode',
-                                style: GoogleFonts.inter(
-                                  color: _isLocal
-                                      ? AppColors.modeLocalLight
-                                      : AppColors.modeCloudLight,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isLocal
-                                ? 'Both devices must be on the same Wi-Fi.'
-                                : 'Internet connection required on both devices.',
-                            style: GoogleFonts.inter(
-                              color: _isLocal
-                                  ? AppColors.modeLocalLighter
-                                  : AppColors.modeCloudLighter,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-                  ],
-                ),
+              SetupInstructionsCard(
+                isLocal: _isLocal,
+                onOpenGuide: () => _openSetupGuide(hapticsHelper),
+                onCopyLink: () => _copySetupLink(hapticsHelper),
               ),
 
               const SizedBox(height: 12),
@@ -619,7 +417,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   onPressed: _isConnecting
                       ? null
                       : () {
-                          ref.read(hapticsHelperProvider).triggerHaptics();
+                          hapticsHelper.triggerHaptics();
                           _saveAndConnect();
                         },
                   style: ElevatedButton.styleFrom(
@@ -667,111 +465,6 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
               const SizedBox(height: 24),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QrScannerSheet extends ConsumerStatefulWidget {
-  const _QrScannerSheet();
-
-  @override
-  ConsumerState<_QrScannerSheet> createState() => _QrScannerSheetState();
-}
-
-class _QrScannerSheetState extends ConsumerState<_QrScannerSheet> {
-  final MobileScannerController _controller = MobileScannerController();
-  bool _hasDetected = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height;
-    return SafeArea(
-      child: SizedBox(
-        height: height * 0.75,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Text(
-                    'Scan Server QR',
-                    style: GoogleFonts.inter(
-                      color: AppColors.primary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Close scanner',
-                    icon: const Icon(LucideIcons.x, color: AppColors.primary),
-                    onPressed: () {
-                      ref.read(hapticsHelperProvider).triggerHaptics();
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Align the QR code within the frame to capture the server URL.',
-                style: GoogleFonts.inter(
-                  color: AppColors.primary.withOpacity(0.7),
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Stack(
-                children: [
-                  MobileScanner(
-                    controller: _controller,
-                    onDetect: (capture) {
-                      if (_hasDetected) return;
-                      for (final barcode in capture.barcodes) {
-                        final rawValue = barcode.rawValue;
-                        if (rawValue != null && rawValue.isNotEmpty) {
-                          setState(() {
-                            _hasDetected = true;
-                          });
-                          Navigator.of(context).pop(rawValue);
-                          break;
-                        }
-                      }
-                    },
-                  ),
-                  Align(
-                    alignment: Alignment.center,
-                    child: Container(
-                      width: 220,
-                      height: 220,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.primary.withOpacity(0.7),
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
         ),
       ),
     );

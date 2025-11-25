@@ -25,7 +25,8 @@ class HapticsHelper {
         await HapticFeedback.lightImpact();
         break;
       case 'max':
-        // TODO: Implement max level haptics (to be defined by user)
+        // Stronger haptic feedback for critical interactions
+        await HapticFeedback.heavyImpact();
         break;
     }
   }

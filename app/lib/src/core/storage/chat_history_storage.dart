@@ -59,7 +59,7 @@ class ChatHistoryStorage {
       final messages = _box.values
           .map((item) => Map<String, dynamic>.from(item as Map))
           .where((message) {
-            final content = (message['content'] as String? ?? '').toLowerCase();
+            final content = (message['text'] as String? ?? '').toLowerCase();
             return content.contains(lowerQuery);
           })
           .toList();

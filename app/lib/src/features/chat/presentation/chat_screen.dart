@@ -193,7 +193,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (chatState.error != null)
             Container(
               padding: const EdgeInsets.all(8),
-              color: AppColors.error.withOpacity(0.1),
+              color: AppColors.error.withValues(alpha: 0.1),
               child: Row(
                 children: [
                   const Icon(
