@@ -3,6 +3,8 @@ import socket
 import uvicorn
 import httpx
 import qrcode
+import logging
+from datetime import datetime
 from fastapi import (
     Depends,
     FastAPI,
@@ -16,6 +18,14 @@ from pydantic import BaseModel
 from pyngrok import ngrok
 from typing import Optional
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 # --- CONFIGURATION ---
 # Options: "MOCK", "PROXY"
 # - MOCK: Returns dummy data (for UI Dev).
@@ -24,7 +34,9 @@ SERVER_MODE = "MOCK"
 PASSWORD: Optional[str] = None
 
 # Parallax Service Endpoint (OpenAI Compatible)
-PARALLAX_SERVICE_URL = "http://localhost:3002/v1/chat/completions"
+# NOTE: Port 3001 is the scheduler which provides the API
+# Port 3002 is only for the web chat UI (when running 'parallax chat')
+PARALLAX_SERVICE_URL = "http://localhost:3001/v1/chat/completions"
 
 app = FastAPI()
 
@@ -81,7 +93,19 @@ def print_qr(url):
 
 @app.on_event("startup")
 async def startup_event():
-    print(f"\n🚀 Server Starting... MODE: {SERVER_MODE}")
+    logger.info(f"🚀 Server Starting... MODE: {SERVER_MODE}")
+
+    # Test Parallax connection if in PROXY mode
+    if SERVER_MODE == "PROXY":
+        logger.info(f"Testing connection to Parallax at {PARALLAX_SERVICE_URL}...")
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get("http://localhost:3001/health", timeout=5.0)
+                logger.info("✅ Parallax connection successful")
+        except Exception as e:
+            logger.warning(f"⚠️ Cannot reach Parallax: {e}")
+            logger.warning("Make sure Parallax is running: parallax run")
+
     setup_password()
 
     # 1. Get Local URL
@@ -124,6 +148,7 @@ async def startup_event():
 
 @app.get("/", dependencies=[Depends(check_password)])
 def home():
+    logger.info("📍 Root endpoint accessed")
     return {"status": "online", "mode": SERVER_MODE, "device": "Server Node"}
 
 
@@ -137,18 +162,48 @@ class ChatRequest(BaseModel):
     prompt: str
 
 
+@app.get("/status", dependencies=[Depends(check_password)])
+async def status_endpoint():
+    """Check server and Parallax connectivity status."""
+    status = {
+        "server": "online",
+        "mode": SERVER_MODE,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    if SERVER_MODE == "PROXY":
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get("http://localhost:3001/health", timeout=5.0)
+                status["parallax"] = "connected"
+                logger.info("✅ Parallax status check: connected")
+        except Exception as e:
+            status["parallax"] = "disconnected"
+            status["parallax_error"] = str(e)
+            logger.error(f"❌ Parallax status check failed: {e}")
+
+    return status
+
+
 @app.post("/chat", dependencies=[Depends(check_password)])
 async def chat_endpoint(request: ChatRequest):
-    print(f"📝 Text Request: {request.prompt}")
+    request_id = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    logger.info(f"📝 [{request_id}] Received chat request: {request.prompt[:50]}...")
 
     if SERVER_MODE == "MOCK":
+        logger.info(f"📤 [{request_id}] Returning MOCK response")
         return {
             "response": f"[MOCK] Server received: '{request.prompt}'. \n\nThis is a simulated response."
         }
 
     elif SERVER_MODE == "PROXY":
         # Forward to Parallax Service (OpenAI API)
+        start_time = datetime.now()
         try:
+            logger.info(
+                f"🔄 [{request_id}] Forwarding to Parallax at {PARALLAX_SERVICE_URL}"
+            )
+
             async with httpx.AsyncClient() as client:
                 # Construct OpenAI-compatible payload
                 payload = {
@@ -156,12 +211,16 @@ async def chat_endpoint(request: ChatRequest):
                     "messages": [{"role": "user", "content": request.prompt}],
                     "stream": False,
                 }
+                logger.debug(f"📦 [{request_id}] Payload: {payload}")
 
                 resp = await client.post(
                     PARALLAX_SERVICE_URL, json=payload, timeout=60.0
                 )
 
                 if resp.status_code != 200:
+                    logger.error(
+                        f"❌ [{request_id}] Parallax returned {resp.status_code}: {resp.text}"
+                    )
                     raise HTTPException(
                         status_code=resp.status_code,
                         detail=f"Parallax Error: {resp.text}",
@@ -170,23 +229,45 @@ async def chat_endpoint(request: ChatRequest):
                 # Parse OpenAI response format
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
+
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logger.info(
+                    f"✅ [{request_id}] Received response from Parallax ({elapsed:.2f}s)"
+                )
+                logger.debug(f"📨 [{request_id}] Response preview: {content[:100]}...")
+
                 return {"response": content}
 
+        except httpx.TimeoutException as e:
+            logger.error(f"⏱️ [{request_id}] Parallax request timeout: {e}")
+            raise HTTPException(
+                status_code=504,
+                detail="Parallax request timed out. The model might be processing a heavy request.",
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"🔌 [{request_id}] Cannot connect to Parallax: {e}")
+            raise HTTPException(
+                status_code=503,
+                detail="Cannot connect to Parallax. Make sure it's running: parallax run",
+            )
         except Exception as e:
-            print(f"❌ Proxy Error: {e}")
+            logger.error(f"❌ [{request_id}] Proxy error: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Remote Service Error: {e}")
 
 
 @app.post("/vision", dependencies=[Depends(check_password)])
 async def vision_endpoint(image: UploadFile = File(...), prompt: str = Form(...)):
-    print(f"📸 Vision Request: {prompt}")
+    request_id = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    logger.info(f"📸 [{request_id}] Vision request: {prompt[:50]}...")
 
     if SERVER_MODE == "MOCK":
+        logger.info(f"📤 [{request_id}] Returning MOCK vision response")
         return {
             "response": f"[MOCK] Vision Analysis: I see a simulated image. Prompt: {prompt}"
         }
 
     # TODO: Implement Vision Proxy when Parallax supports Multi-Modal API
+    logger.warning(f"⚠️ [{request_id}] Vision proxy not yet implemented")
     return {"response": "[PROXY] Vision not yet implemented in Parallax API wrapper."}
 
 

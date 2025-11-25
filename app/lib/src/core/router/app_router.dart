@@ -6,6 +6,7 @@ import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/chat/presentation/history_screen.dart';
 import '../../features/config/presentation/config_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../utils/logger.dart';
 
 // Route paths
@@ -14,6 +15,7 @@ class AppRoutes {
   static const config = '/config';
   static const chat = '/chat';
   static const history = '/history';
+  static const settings = '/settings';
 }
 
 /// Common fade transition builder
@@ -91,9 +93,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.splash,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Splash');
-          return _buildFadeTransition(
+          return CustomTransitionPage(
             key: state.pageKey,
             child: const SplashScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
           );
         },
       ),
@@ -101,9 +107,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.config,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Config');
-          return _buildFadeTransition(
+          return CustomTransitionPage(
             key: state.pageKey,
             child: const ConfigScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
           );
         },
       ),
@@ -111,9 +121,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.chat,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to Chat');
-          return _buildFadeTransition(
+          return CustomTransitionPage(
             key: state.pageKey,
             child: const ChatScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
           );
         },
       ),
@@ -121,9 +135,38 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.history,
         pageBuilder: (context, state) {
           logger.navigation('Navigating to History');
-          return _buildSlideTransition(
+          return CustomTransitionPage(
             key: state.pageKey,
             child: const HistoryScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  // Slide from left
+                  const begin = Offset(-1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeOutCubic;
+                  var tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        pageBuilder: (context, state) {
+          logger.navigation('Navigating to Settings');
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const SettingsScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
           );
         },
       ),

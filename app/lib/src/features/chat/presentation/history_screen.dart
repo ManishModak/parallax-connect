@@ -9,6 +9,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/utils/haptics_helper.dart';
 import 'chat_controller.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -140,6 +141,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         ),
                                         tooltip: 'Clear search',
                                         onPressed: () {
+                                          ref
+                                              .read(hapticsHelperProvider)
+                                              .triggerHaptics();
                                           _searchController.clear();
                                           _debounceTimer?.cancel();
                                           setState(() {
@@ -161,7 +165,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   IconButton(
                     icon: const Icon(LucideIcons.x, color: AppColors.secondary),
                     tooltip: 'Close history',
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      ref.read(hapticsHelperProvider).triggerHaptics();
+                      context.pop();
+                    },
                   ),
                 ],
               ),
@@ -186,6 +193,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () {
+                      ref.read(hapticsHelperProvider).triggerHaptics();
                       ref.read(chatControllerProvider.notifier).startNewChat();
                       context.pop();
                     },
@@ -278,16 +286,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ),
                     tooltip: 'Open settings',
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Settings coming soon',
-                            style: GoogleFonts.inter(
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                        ),
-                      );
+                      ref.read(hapticsHelperProvider).triggerHaptics();
+                      context.push(AppRoutes.settings);
                     },
                   ),
                   IconButton(
@@ -296,7 +296,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       color: AppColors.secondary,
                     ),
                     tooltip: 'Open Connection Setup',
-                    onPressed: () => context.push(AppRoutes.config),
+                    onPressed: () {
+                      ref.read(hapticsHelperProvider).triggerHaptics();
+                      context.push(AppRoutes.config);
+                    },
                   ),
                 ],
               ),
@@ -418,6 +421,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            ref.read(hapticsHelperProvider).triggerHaptics();
             // TODO: Load this chat session
             context.pop();
           },

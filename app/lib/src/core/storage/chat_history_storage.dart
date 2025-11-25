@@ -110,8 +110,8 @@ class ChatHistoryStorage {
 
   /// Validate message structure
   bool _isValidMessage(Map<String, dynamic> message) {
-    return message.containsKey('content') &&
-        message.containsKey('role') &&
+    return message.containsKey('text') &&
+        message.containsKey('isUser') &&
         message.containsKey('timestamp');
   }
 }

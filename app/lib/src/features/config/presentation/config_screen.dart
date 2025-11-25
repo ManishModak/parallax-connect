@@ -14,6 +14,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/connectivity_service.dart';
 import '../../../core/storage/config_storage.dart';
+import '../../../core/utils/haptics_helper.dart';
 import '../../chat/data/chat_repository.dart';
 
 class ConfigScreen extends ConsumerStatefulWidget {
@@ -212,7 +213,10 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _isLocal = false),
+                        onTap: () {
+                          ref.read(hapticsHelperProvider).triggerHaptics();
+                          setState(() => _isLocal = false);
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
@@ -237,7 +241,10 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                     ),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _isLocal = true),
+                        onTap: () {
+                          ref.read(hapticsHelperProvider).triggerHaptics();
+                          setState(() => _isLocal = true);
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
@@ -283,7 +290,10 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                     child: IconButton(
                       icon: const Icon(LucideIcons.scanLine),
                       color: AppColors.secondary,
-                      onPressed: _scanQrCode,
+                      onPressed: () {
+                        ref.read(hapticsHelperProvider).triggerHaptics();
+                        _scanQrCode();
+                      },
                     ),
                   ),
                   Tooltip(
@@ -292,6 +302,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                       icon: const Icon(LucideIcons.clipboardPaste),
                       color: AppColors.secondary,
                       onPressed: () async {
+                        ref.read(hapticsHelperProvider).triggerHaptics();
                         final clipboard = await Clipboard.getData(
                           Clipboard.kTextPlain,
                         );
@@ -395,6 +406,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                     ),
                     color: AppColors.secondary,
                     onPressed: () {
+                      ref.read(hapticsHelperProvider).triggerHaptics();
                       setState(() {
                         _isPasswordVisible = !_isPasswordVisible;
                       });
@@ -455,6 +467,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () async {
+                              ref.read(hapticsHelperProvider).triggerHaptics();
                               final url = Uri.parse(
                                 'https://github.com/ManishModak/parallax-connect/blob/main/SERVER_SETUP.md',
                               );
@@ -504,6 +517,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                           message: 'Copy guide link',
                           child: OutlinedButton(
                             onPressed: () async {
+                              ref.read(hapticsHelperProvider).triggerHaptics();
                               await Clipboard.setData(
                                 const ClipboardData(
                                   text:
@@ -602,7 +616,12 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isConnecting ? null : _saveAndConnect,
+                  onPressed: _isConnecting
+                      ? null
+                      : () {
+                          ref.read(hapticsHelperProvider).triggerHaptics();
+                          _saveAndConnect();
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.background,
@@ -654,14 +673,14 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   }
 }
 
-class _QrScannerSheet extends StatefulWidget {
+class _QrScannerSheet extends ConsumerStatefulWidget {
   const _QrScannerSheet();
 
   @override
-  State<_QrScannerSheet> createState() => _QrScannerSheetState();
+  ConsumerState<_QrScannerSheet> createState() => _QrScannerSheetState();
 }
 
-class _QrScannerSheetState extends State<_QrScannerSheet> {
+class _QrScannerSheetState extends ConsumerState<_QrScannerSheet> {
   final MobileScannerController _controller = MobileScannerController();
   bool _hasDetected = false;
 
@@ -696,7 +715,10 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
                   IconButton(
                     tooltip: 'Close scanner',
                     icon: const Icon(LucideIcons.x, color: AppColors.primary),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      ref.read(hapticsHelperProvider).triggerHaptics();
+                      Navigator.of(context).pop();
+                    },
                   ),
                 ],
               ),

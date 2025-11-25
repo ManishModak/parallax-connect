@@ -117,19 +117,19 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.svg"
+  image_path: "assets/images/logo.png"
   adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/images/logo.svg"
+  adaptive_icon_foreground: "assets/images/logo.png"
   remove_alpha_ios: true
 
 # Native Splash Screen Configuration
 flutter_native_splash:
   color: "#000000"
-  image: "assets/images/logo.svg"
+  image: "assets/images/logo.png"
   android: true
   ios: true
   fullscreen: true
   android_12:
     color: "#000000"
-    image: "assets/images/logo.svg"
+    image: "assets/images/logo.png"
 

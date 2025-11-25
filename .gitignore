@@ -1,12 +1,44 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code
+.vscode/
+.history/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+doc/api/
+.fvm/
+
 # Python
 __pycache__/
-*.pyc
 *.pyo
 *.pyd
 .Python
 env/
 venv/
-.venv
+.venv/
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
@@ -16,64 +48,60 @@ pip-delete-this-directory.txt
 nosetests.xml
 coverage.xml
 *.cover
-*.log
 .pytest_cache/
 
-# Flutter/Dart
-.dart_tool/
-.idea/
-.vscode/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-*.iml
-*.ipr
-*.iws
-pubspec.lock
-
-# Environment
-.env
-.env.local
-
-# General
-.DS_Store
-Thumbs.db
-
 # Android
-app/android/local.properties
+app/android/gradle-wrapper/
 app/android/.gradle/
-app/android/gradle/
 app/android/captures/
-app/android/app/debug/
-app/android/app/profile/
-app/android/app/release/
+app/android/gradle/
+app/android/local.properties
+app/android/**/generated/
+app/android/**/gradle/
+app/android/app/build/
+app/android/app/outputs/
+app/android/app/tmp/
+app/android/app/src/main/assets/flutter_assets/
+app/android/app/src/main/jniLibs/
+app/android/app/src/main/obj/
+app/android/app/src/main/libs/
 app/android/key.properties
 
 # iOS
-app/ios/Flutter/flutter_export_environment.sh
+app/ios/Flutter/App.framework
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
 app/ios/Flutter/Generated.xcconfig
+app/ios/Flutter/app.flx
+app/ios/Flutter/app.zip
+app/ios/Flutter/flutter_assets/
+app/ios/Flutter/flutter_export_environment.sh
+app/ios/ServiceDefinitions.json
+app/ios/Runner/GeneratedPluginRegistrant.*
 app/ios/Pods/
 app/ios/.symlinks/
-app/ios/Flutter/.last_build_id
-app/ios/Runner.xcworkspace/
-
-# Windows
-app/windows/flutter/
+app/ios/Profile/
+app/ios/Release/
+app/ios/DerivedData/
 
 # macOS
-app/macos/Flutter/
+app/macos/Flutter/ephemeral/
 app/macos/Pods/
+app/macos/.symlinks/
+
+# Windows
+app/windows/flutter/ephemeral/
 
 # Linux
-app/linux/flutter/
+app/linux/flutter/ephemeral/
 
 # Web
-app/.dart_tool/
-app/build/
+app/web/icons/
+app/web/favicon.png
+app/web/manifest.json
 
-# Hive
+# Project Specific
+parallax-main-repo/
 *.hive
 *.lock
+!pubspec.lock

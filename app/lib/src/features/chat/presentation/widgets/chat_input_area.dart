@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/haptics_helper.dart';
 import 'attachment_menu.dart';
 
-class ChatInputArea extends StatefulWidget {
+class ChatInputArea extends ConsumerStatefulWidget {
   final Function(String text, List<String> attachmentPaths) onSubmitted;
   final bool isLoading;
   final Future<String?> Function() onCameraTap;
@@ -22,10 +24,10 @@ class ChatInputArea extends StatefulWidget {
   });
 
   @override
-  State<ChatInputArea> createState() => _ChatInputAreaState();
+  ConsumerState<ChatInputArea> createState() => _ChatInputAreaState();
 }
 
-class _ChatInputAreaState extends State<ChatInputArea> {
+class _ChatInputAreaState extends ConsumerState<ChatInputArea> {
   final TextEditingController _controller = TextEditingController();
   final List<String> _selectedAttachments = [];
   bool _isAttachmentMenuOpen = false;
@@ -72,6 +74,7 @@ class _ChatInputAreaState extends State<ChatInputArea> {
             groupId: 'attachment_menu',
             child: AttachmentMenu(
               onCameraTap: () async {
+                ref.read(hapticsHelperProvider).triggerHaptics();
                 _removeOverlay();
                 setState(() => _isAttachmentMenuOpen = false);
                 final path = await widget.onCameraTap();
@@ -82,6 +85,7 @@ class _ChatInputAreaState extends State<ChatInputArea> {
                 }
               },
               onGalleryTap: () async {
+                ref.read(hapticsHelperProvider).triggerHaptics();
                 _removeOverlay();
                 setState(() => _isAttachmentMenuOpen = false);
                 final paths = await widget.onGalleryTap();
@@ -92,6 +96,7 @@ class _ChatInputAreaState extends State<ChatInputArea> {
                 }
               },
               onFileTap: () async {
+                ref.read(hapticsHelperProvider).triggerHaptics();
                 _removeOverlay();
                 setState(() => _isAttachmentMenuOpen = false);
                 final paths = await widget.onFileTap();
@@ -112,6 +117,7 @@ class _ChatInputAreaState extends State<ChatInputArea> {
     final text = _controller.text.trim();
     if ((text.isNotEmpty || _selectedAttachments.isNotEmpty) &&
         !widget.isLoading) {
+      ref.read(hapticsHelperProvider).triggerHaptics();
       widget.onSubmitted(text, List.from(_selectedAttachments));
       _controller.clear();
       setState(() {

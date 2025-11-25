@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/utils/haptics_helper.dart';
 import 'chat_controller.dart';
 import 'widgets/chat_message_bubble.dart';
 import 'widgets/chat_input_area.dart';
@@ -62,7 +63,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             height: 24,
             colorFilter: ColorFilter.mode(AppColors.secondary, BlendMode.srcIn),
           ),
-          onPressed: () => context.push(AppRoutes.history),
+          onPressed: () {
+            ref.read(hapticsHelperProvider).triggerHaptics();
+            context.push(AppRoutes.history);
+          },
         ),
         title: Text(
           'Parallax Connect',
@@ -97,14 +101,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ? 'Exit Private Chat'
                 : 'Start New Chat',
             onPressed: () {
+              ref.read(hapticsHelperProvider).triggerHaptics();
               if (chatState.messages.isEmpty && !chatState.isPrivateMode) {
-                // Enable private mode
                 chatController.togglePrivateMode();
               } else if (chatState.isPrivateMode) {
-                // Disable private mode and clear messages
                 chatController.disablePrivateMode();
               } else {
-                // Start new chat
                 chatController.startNewChat();
               }
             },
