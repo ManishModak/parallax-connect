@@ -17,6 +17,16 @@ import 'widgets/section_header.dart';
 import 'widgets/smart_context_switch.dart';
 import 'widgets/vision_option_tile.dart';
 
+// TODO: Implement dynamic feature disabling based on requirements:
+// - Client device specs (minimum device capabilities for certain features)
+// - Parallax server capabilities:
+//   * VRAM availability (disable Full Multimodal if <16GB)
+//   * Vision model support (disable Full Multimodal if vision not supported)
+//   * Document processing support (auto-enable Smart Context if not supported)
+//   * Model context window size (adjust max context slider range)
+// Features should query server /info endpoint and device capabilities to
+// show/hide or disable options that won't work with current configuration.
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -108,14 +118,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SectionHeader(title: 'Vision Pipeline'),
           const SizedBox(height: 8),
           Text(
-            'Choose how images/documents are processed',
+            'Choose how visual content is processed',
             style: GoogleFonts.inter(color: AppColors.secondary, fontSize: 14),
           ),
           const SizedBox(height: 16),
           VisionOptionTile(
             title: 'Edge OCR (Recommended)',
             description:
-                'Extracts text on-phone. Fastest. Works with all models. Best for standard documents and quick text extraction.',
+                'Works with any Parallax setup. Processes text locally on your device. Best for standard documents and quick extraction.',
             techNote: 'Uses Google ML Kit',
             value: 'edge',
             groupValue: state.visionPipelineMode,
@@ -129,7 +139,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           VisionOptionTile(
             title: 'Full Multimodal (Experimental)',
             description:
-                'Sends raw image to server. Requires Llama 3.2 Vision. Best for complex diagrams, handwriting, or when OCR fails. Note: Requires server with >16GB VRAM.',
+                'Choose this when your Parallax server has vision-capable models and >16GB VRAM. Best for complex visuals that need deep understanding.',
             value: 'multimodal',
             groupValue: state.visionPipelineMode,
             onChanged: (val) {
@@ -141,6 +151,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 32),
 
           const SectionHeader(title: 'Document Strategy'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(LucideIcons.info, color: AppColors.primary, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Optimize document processing. Enable Smart Context if your Parallax model doesn\'t support documents natively, has limited VRAM/context window, or for OCR-heavy workflows.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           SmartContextSwitch(
             value: state.isSmartContextEnabled,

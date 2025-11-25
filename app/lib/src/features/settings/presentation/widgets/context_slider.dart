@@ -37,8 +37,7 @@ class ContextSlider extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -56,7 +55,7 @@ class ContextSlider extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'How much PDF text to send to the server at once. Lower values = less VRAM usage. Higher values = better context but may cause OOM.',
+            'Max document context sent to server. Higher values use more tokens and VRAM.',
             style: GoogleFonts.inter(
               color: AppColors.secondary,
               fontSize: 13,
@@ -71,10 +70,8 @@ class ContextSlider extends StatelessWidget {
               thumbColor: AppColors.primary,
               overlayColor: AppColors.primary.withValues(alpha: 0.1),
               trackHeight: 4,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 16),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
             ),
             child: Slider(
               value: value.toDouble(),
@@ -112,4 +109,3 @@ class ContextSlider extends StatelessWidget {
     );
   }
 }
-

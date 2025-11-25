@@ -39,7 +39,7 @@ class SmartContextSwitch extends StatelessWidget {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-            'Automatically switches to RAG mode for large files to prevent server OOM (Out of Memory). Recommended for RTX 4060 and similar GPUs.',
+            'Automatically uses RAG mode for large documents or when needed.',
             style: GoogleFonts.inter(
               color: AppColors.secondary,
               fontSize: 13,
@@ -51,4 +51,3 @@ class SmartContextSwitch extends StatelessWidget {
     );
   }
 }
-
