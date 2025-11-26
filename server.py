@@ -1,4 +1,5 @@
 import getpass
+import re
 import socket
 import uvicorn
 import httpx
@@ -377,7 +378,16 @@ async def chat_endpoint(request: ChatRequest):
                 # Parse OpenAI response format
                 # Note: Parallax uses "messages" (plural) not "message" in the response
                 data = resp.json()
-                content = data["choices"][0]["messages"]["content"]
+                raw_content = data["choices"][0]["messages"]["content"]
+
+                # Clean response - remove <think>...</think> tags that some models include
+                content = re.sub(
+                    r"<think>.*?</think>", "", raw_content, flags=re.DOTALL
+                ).strip()
+
+                # If the entire response was just thinking, provide fallback
+                if not content:
+                    content = raw_content  # Return original if filtering left nothing
 
                 # Extract usage metadata (token counts)
                 usage = data.get("usage", {})
