@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Options: "MOCK", "PROXY"
 # - MOCK: Returns dummy data (for UI Dev).
 # - PROXY: Forwards requests to running Parallax Service (localhost:3002).
-SERVER_MODE = "MOCK"
+SERVER_MODE = "PROXY"
 PASSWORD: Optional[str] = None
 
 # Parallax Service Endpoint (OpenAI Compatible)
