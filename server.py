@@ -196,11 +196,11 @@ class ChatRequest(BaseModel):
     """
 
     # === BASIC PARAMETERS (SUPPORTED) ===
-    max_tokens: int = 512
+    max_tokens: int = 2048
     """
     Maximum number of tokens (words/pieces) to generate.
     STATUS: SUPPORTED by Parallax
-    - Default: 512
+    - Default: 2048
     - Range: 1 to model's max (usually 2048-4096)
     """
 
