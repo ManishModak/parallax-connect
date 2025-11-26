@@ -7,21 +7,18 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/haptics_helper.dart';
 import '../../../core/storage/chat_archive_storage.dart';
+import '../../../core/services/device_requirements_service.dart';
 import '../../../core/services/feature_flags_service.dart';
 import '../../../core/services/server_capabilities_service.dart';
 import '../../chat/presentation/chat_controller.dart';
 import 'settings_controller.dart';
 import 'widgets/about_card.dart';
 import 'widgets/clear_history_confirmation_dialog.dart';
-import 'widgets/context_slider.dart';
-import 'widgets/feature_info_dialog.dart';
-import 'widgets/feature_toggle_tile.dart';
+import 'widgets/device_requirements_card.dart';
 import 'widgets/haptics_selector.dart';
 import 'widgets/response_preference_section.dart';
 import 'widgets/section_header.dart';
-import 'widgets/smart_context_switch.dart';
 import 'widgets/streaming_settings_section.dart';
-import 'widgets/vision_option_tile.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -39,7 +36,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _systemPromptController = TextEditingController(
       text: ref.read(settingsControllerProvider).systemPrompt,
     );
-    // Fetch server capabilities on screen load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(featureFlagsProvider.notifier).refreshCapabilities();
     });
@@ -51,19 +47,145 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.dispose();
   }
 
-  Widget _buildFeatureCapabilitiesSection(HapticsHelper hapticsHelper) {
+  /// Shows a warning dialog if device doesn't meet requirements
+  Future<bool> _checkAndWarnRequirements(
+    String featureKey,
+    HapticsHelper hapticsHelper,
+  ) async {
+    final service = ref.read(deviceRequirementsServiceProvider);
+    final result = await service.checkRequirements(featureKey);
+
+    if (!result.meetsRequirements) {
+      hapticsHelper.triggerHaptics();
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                LucideIcons.alertTriangle,
+                color: AppColors.accent,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Device Requirements',
+                  style: GoogleFonts.inter(
+                    color: AppColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your device may not meet the requirements for this feature:',
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...result.issues.map(
+                (issue) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(LucideIcons.x, color: AppColors.error, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          issue,
+                          style: GoogleFonts.inter(
+                            color: AppColors.error,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (result.recommendation.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  result.recommendation,
+                  style: GoogleFonts.inter(
+                    color: AppColors.secondary,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(color: AppColors.secondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'Enable Anyway',
+                style: GoogleFonts.inter(color: AppColors.accent),
+              ),
+            ),
+          ],
+        ),
+      );
+      return proceed ?? false;
+    }
+
+    // Show warnings if any (but still allow enabling)
+    if (result.warnings.isNotEmpty) {
+      final deviceInfo = await service.getDeviceInfo();
+      if (deviceInfo.isLowEndDevice) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Note: This feature may run slowly on your device',
+              style: GoogleFonts.inter(color: AppColors.primary),
+            ),
+            backgroundColor: AppColors.surface,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+
+    return true;
+  }
+
+  /// Builds the unified Media & Documents section
+  Widget _buildMediaAndDocumentsSection(HapticsHelper hapticsHelper) {
     final featureFlags = ref.watch(featureFlagsProvider);
     final capsAsync = ref.watch(serverCapabilitiesProvider);
     final featureFlagsNotifier = ref.read(featureFlagsProvider.notifier);
     final caps = capsAsync.value;
+    final state = ref.watch(settingsControllerProvider);
+    final controller = ref.read(settingsControllerProvider.notifier);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Expanded(child: SectionHeader(title: 'Feature Capabilities')),
-            // Refresh button
+            const Expanded(child: SectionHeader(title: 'Media & Documents')),
             capsAsync.when(
               loading: () => const SizedBox(
                 width: 20,
@@ -113,8 +235,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Expanded(
                 child: Text(
                   featureFlags.capabilitiesFetched
-                      ? 'Tap on a feature to configure it. Features are disabled by default for safety.'
-                      : 'Connect to your Parallax server to detect available features.',
+                      ? 'Configure how images and documents are processed. Server VRAM: ${caps?.vramGb ?? 0}GB, Max context: ${featureFlags.maxContextTokens} tokens'
+                      : 'Connect to your Parallax server to detect available features and configure processing options.',
                   style: GoogleFonts.inter(
                     color: AppColors.secondary,
                     fontSize: 12,
@@ -126,194 +248,679 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        // Attachments toggle
-        FeatureToggleTile(
+
+        // Attachments Master Toggle
+        _buildExpandableFeatureTile(
+          icon: LucideIcons.paperclip,
           title: 'Attachments',
           badgeText: 'BETA',
-          description: 'Send images and documents in chat.',
-          status: featureFlags.attachments,
-          onTap: () => _showAttachmentsDialog(
-            hapticsHelper,
-            featureFlags,
-            featureFlagsNotifier,
-            caps,
-          ),
+          description: 'Send images and documents in chat conversations',
+          requirementKey: 'attachments',
+          isEnabled: featureFlags.attachments.isEnabled,
+          onToggle: (val) async {
+            hapticsHelper.triggerHaptics();
+            if (val) {
+              final canEnable = await _checkAndWarnRequirements(
+                'attachments',
+                hapticsHelper,
+              );
+              if (!canEnable) return;
+            }
+            await featureFlagsNotifier.setAttachmentsEnabled(val);
+          },
+          details: [
+            'Images are processed locally using Edge OCR (Google ML Kit)',
+            'Text is extracted on your device, then sent to Parallax',
+            'Documents are chunked via Smart Context before sending',
+            'Parallax receives only the extracted text, not raw images',
+            'Minimum requirement: 2GB RAM',
+          ],
         ),
         const SizedBox(height: 12),
-        // Multimodal Vision toggle
-        FeatureToggleTile(
-          title: 'Full Multimodal Vision',
-          badgeText: 'EXPERIMENTAL',
-          description: 'Process images on server for deep understanding.',
-          infoNote: featureFlags.capabilitiesFetched
-              ? 'Server VRAM: ${caps?.vramGb ?? 0}GB'
-              : null,
-          status: featureFlags.multimodalVision,
-          onTap: () => _showMultimodalDialog(
+
+        // Vision Processing Options (only show when attachments enabled)
+        if (featureFlags.attachments.isEnabled) ...[
+          _buildVisionProcessingCard(
             hapticsHelper,
             featureFlags,
-            featureFlagsNotifier,
+            state,
+            controller,
             caps,
           ),
-        ),
-        const SizedBox(height: 12),
-        // Document Processing toggle
-        FeatureToggleTile(
-          title: 'Server Document Processing',
+          const SizedBox(height: 12),
+        ],
+
+        // Document Processing
+        _buildExpandableFeatureTile(
+          icon: LucideIcons.fileText,
+          title: 'Document Processing',
           badgeText: 'BETA',
-          description: 'Process documents directly on the server.',
-          infoNote: featureFlags.capabilitiesFetched
-              ? 'Max context: ${featureFlags.maxContextTokens} tokens'
-              : null,
-          status: featureFlags.documentProcessing,
-          onTap: () => _showDocumentProcessingDialog(
-            hapticsHelper,
-            featureFlags,
-            featureFlagsNotifier,
-            caps,
-          ),
+          description: 'Process PDFs and text files with intelligent chunking',
+          requirementKey: 'document_processing',
+          isEnabled: featureFlags.documentProcessing.isEnabled,
+          onToggle: (val) async {
+            hapticsHelper.triggerHaptics();
+            if (val) {
+              final canEnable = await _checkAndWarnRequirements(
+                'document_processing',
+                hapticsHelper,
+              );
+              if (!canEnable) return;
+            }
+            await featureFlagsNotifier.setDocumentProcessingEnabled(val);
+            if (val) {
+              controller.toggleSmartContext(true);
+            }
+          },
+          details: [
+            'Documents are processed locally using Smart Context',
+            'Large documents are intelligently chunked to fit context window',
+            'Only relevant text portions are sent to Parallax',
+            'Server supports up to ${caps?.maxContextWindow ?? 4096} tokens per request',
+            'Minimum requirement: 3GB RAM (4GB+ for large PDFs)',
+          ],
         ),
+
+        // Document Strategy Options (only show when document processing enabled)
+        if (featureFlags.documentProcessing.isEnabled) ...[
+          const SizedBox(height: 12),
+          _buildDocumentStrategyCard(hapticsHelper, state, controller),
+        ],
       ],
     );
   }
 
-  Future<void> _showAttachmentsDialog(
+  /// Builds the vision processing options card
+  Widget _buildVisionProcessingCard(
     HapticsHelper hapticsHelper,
     FeatureFlags featureFlags,
-    FeatureFlagsNotifier notifier,
+    dynamic state,
+    dynamic controller,
     ServerCapabilities? caps,
-  ) async {
-    hapticsHelper.triggerHaptics();
+  ) {
+    final multimodalAvailable = featureFlags.multimodalVision.isAvailable;
 
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => FeatureInfoDialog(
-        featureName: 'Attachments',
-        featureDescription:
-            'Enable this to send images and documents in your chat conversations.\n\n'
-            'How it works:\n'
-            '• Images are processed locally using Edge OCR (Google ML Kit)\n'
-            '• Text is extracted on your device, then sent to Parallax\n'
-            '• Documents are chunked via Smart Context before sending\n\n'
-            'Note: Parallax receives only the extracted text, not raw images.',
-        options: [
-          FeatureOption(
-            title: 'Enable Attachments',
-            description:
-                'Allow sending images and documents. They will be processed locally using Edge OCR before sending text to Parallax.',
-            recommendation:
-                'Uses on-device processing - works with any Parallax setup',
-            isRecommended: true,
-            value: 'enable',
-          ),
-          FeatureOption(
-            title: 'Keep Disabled',
-            description:
-                'Attachments will remain disabled. You can enable this later.',
-            value: 'disable',
-          ),
-        ],
-        currentValue: featureFlags.attachments.isEnabled ? 'enable' : 'disable',
+    return Container(
+      margin: const EdgeInsets.only(left: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.1)),
       ),
-    );
-
-    if (result != null) {
-      await notifier.setAttachmentsEnabled(result == 'enable');
-    }
-  }
-
-  Future<void> _showMultimodalDialog(
-    HapticsHelper hapticsHelper,
-    FeatureFlags featureFlags,
-    FeatureFlagsNotifier notifier,
-    ServerCapabilities? caps,
-  ) async {
-    hapticsHelper.triggerHaptics();
-
-    // Show info dialog explaining that multimodal is not supported
-    await showDialog<void>(
-      context: context,
-      builder: (context) => FeatureInfoDialog(
-        featureName: 'Full Multimodal Vision',
-        featureDescription:
-            'Server-side image processing is not currently supported by Parallax.\n\n'
-            'The Parallax executor only processes text - it cannot analyze raw images directly.\n\n'
-            'Instead, use Edge OCR which:\n'
-            '• Processes images locally on your device\n'
-            '• Extracts text using Google ML Kit\n'
-            '• Sends only the extracted text to Parallax\n\n'
-            'This works with any Parallax setup and is actually faster!',
-        warningMessage:
-            'This feature is not available because Parallax does not support server-side image processing.',
-        options: [
-          FeatureOption(
-            title: 'Use Edge OCR (Recommended)',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(LucideIcons.eye, color: AppColors.accent, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Vision Processing Mode',
+                      style: GoogleFonts.inter(
+                        color: AppColors.primary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose how visual content (images) is processed',
+                  style: GoogleFonts.inter(
+                    color: AppColors.secondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.background),
+          // Edge OCR Option
+          _buildRadioOption(
+            title: 'Edge OCR (Recommended)',
             description:
-                'Process images locally on your device using ML Kit. Works with any Parallax setup.',
-            recommendation: 'This is the only supported option',
-            isRecommended: true,
+                'Process images locally on your device using Google ML Kit. Works with any Parallax setup.',
+            techNote: 'Best for standard documents and quick text extraction',
             value: 'edge',
+            groupValue: state.visionPipelineMode,
+            onChanged: (val) {
+              hapticsHelper.triggerHaptics();
+              controller.setVisionPipelineMode(val!);
+            },
           ),
+          const Divider(
+            height: 1,
+            indent: 16,
+            endIndent: 16,
+            color: AppColors.background,
+          ),
+          // Multimodal Option
+          _buildRadioOption(
+            title: 'Full Multimodal (Experimental)',
+            description: multimodalAvailable
+                ? 'Server-side processing for complex visuals. Requires vision-capable models and >16GB VRAM.'
+                : 'Not available: ${featureFlags.multimodalVision.disabledMessage}',
+            techNote: multimodalAvailable
+                ? 'Best for complex visuals needing deep understanding'
+                : null,
+            value: 'multimodal',
+            groupValue: state.visionPipelineMode,
+            isDisabled: !multimodalAvailable,
+            onChanged: multimodalAvailable
+                ? (val) {
+                    hapticsHelper.triggerHaptics();
+                    controller.setVisionPipelineMode(val!);
+                  }
+                : null,
+          ),
+          // Warning if multimodal selected but not available
+          if (!multimodalAvailable && state.visionPipelineMode == 'multimodal')
+            Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    LucideIcons.alertTriangle,
+                    color: AppColors.error,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Multimodal is selected but not available. Consider switching to Edge OCR.',
+                      style: GoogleFonts.inter(
+                        color: AppColors.error,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
-        currentValue: 'edge',
       ),
     );
-
-    // Always set to edge OCR since multimodal is not supported
-    ref.read(settingsControllerProvider.notifier).setVisionPipelineMode('edge');
   }
 
-  Future<void> _showDocumentProcessingDialog(
+  /// Builds the document strategy options card
+  Widget _buildDocumentStrategyCard(
     HapticsHelper hapticsHelper,
-    FeatureFlags featureFlags,
-    FeatureFlagsNotifier notifier,
-    ServerCapabilities? caps,
-  ) async {
-    hapticsHelper.triggerHaptics();
-
-    final maxContext = caps?.maxContextWindow ?? 4096;
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => FeatureInfoDialog(
-        featureName: 'Document Processing',
-        featureDescription:
-            'Enable document processing to send PDFs and text files in chat.\n\n'
-            'How it works:\n'
-            '• Documents are processed locally using Smart Context\n'
-            '• Large documents are intelligently chunked\n'
-            '• Only relevant text is sent to Parallax\n\n'
-            'Your server supports up to $maxContext tokens per request.',
-        options: [
-          FeatureOption(
-            title: 'Enable with Smart Context',
-            description:
-                'Process documents locally with intelligent chunking. Automatically splits large documents to fit context window.',
-            recommendation: 'Works with any Parallax setup',
-            isRecommended: true,
-            value: 'enable',
+    dynamic state,
+    dynamic controller,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(left: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      LucideIcons.settings2,
+                      color: AppColors.accent,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Document Strategy',
+                      style: GoogleFonts.inter(
+                        color: AppColors.primary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Optimize how documents are processed and sent to Parallax',
+                  style: GoogleFonts.inter(
+                    color: AppColors.secondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
-          FeatureOption(
-            title: 'Keep Disabled',
-            description: 'Document processing will remain disabled.',
-            value: 'disable',
+          const Divider(height: 1, color: AppColors.background),
+          // Smart Context Toggle
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Smart Context Window',
+                            style: GoogleFonts.inter(
+                              color: AppColors.primaryMildVariant,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Automatically uses RAG mode for large documents. Enable if your Parallax model doesn\'t support documents natively, has limited VRAM/context window, or for OCR-heavy workflows.',
+                            style: GoogleFonts.inter(
+                              color: AppColors.secondary,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Switch(
+                      value: state.isSmartContextEnabled,
+                      onChanged: (val) {
+                        hapticsHelper.triggerHaptics();
+                        controller.toggleSmartContext(val);
+                      },
+                      activeThumbColor: AppColors.primary,
+                      activeTrackColor: AppColors.primary.withValues(
+                        alpha: 0.3,
+                      ),
+                      inactiveThumbColor: AppColors.secondary,
+                      inactiveTrackColor: AppColors.background,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.background),
+          // Context Slider
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Max Context Injection',
+                      style: GoogleFonts.inter(
+                        color: AppColors.primaryMildVariant,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${state.maxContextTokens} tokens',
+                        style: GoogleFonts.inter(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Maximum document context sent to server. Higher values use more tokens and VRAM.',
+                  style: GoogleFonts.inter(
+                    color: AppColors.secondary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor: AppColors.background,
+                    thumbColor: AppColors.primary,
+                    overlayColor: AppColors.primary.withValues(alpha: 0.1),
+                    trackHeight: 4,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 8,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 16,
+                    ),
+                  ),
+                  child: Slider(
+                    value: state.maxContextTokens.toDouble(),
+                    min: 2000,
+                    max: 16000,
+                    divisions: 14,
+                    label: '${state.maxContextTokens}',
+                    onChanged: (val) {
+                      hapticsHelper.triggerHaptics();
+                      controller.setMaxContextTokens(val.toInt());
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '2k',
+                        style: GoogleFonts.inter(
+                          color: AppColors.secondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        '16k',
+                        style: GoogleFonts.inter(
+                          color: AppColors.secondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-        currentValue: featureFlags.documentProcessing.isEnabled
-            ? 'enable'
-            : 'disable',
       ),
     );
+  }
 
-    if (result != null) {
-      if (result == 'enable') {
-        await notifier.setDocumentProcessingEnabled(true);
-        // Enable Smart Context for document chunking
-        ref.read(settingsControllerProvider.notifier).toggleSmartContext(true);
-      } else {
-        await notifier.setDocumentProcessingEnabled(false);
-      }
-    }
+  /// Builds an expandable feature tile with toggle and details
+  Widget _buildExpandableFeatureTile({
+    required IconData icon,
+    required String title,
+    String? badgeText,
+    required String description,
+    String? requirementKey,
+    required bool isEnabled,
+    required Future<void> Function(bool) onToggle,
+    required List<String> details,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isEnabled
+              ? AppColors.primary.withValues(alpha: 0.3)
+              : AppColors.secondary.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isEnabled
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: isEnabled ? AppColors.primary : AppColors.secondary,
+              size: 20,
+            ),
+          ),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: AppColors.primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (badgeText != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: GoogleFonts.inter(
+                      color: AppColors.accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              description,
+              style: GoogleFonts.inter(
+                color: AppColors.secondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          trailing: Switch(
+            value: isEnabled,
+            onChanged: onToggle,
+            activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+            thumbColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary;
+              }
+              return AppColors.secondary;
+            }),
+            trackColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary.withValues(alpha: 0.5);
+              }
+              return AppColors.secondary.withValues(alpha: 0.2);
+            }),
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'How it works:',
+                    style: GoogleFonts.inter(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...details.map(
+                    (detail) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• ',
+                            style: GoogleFonts.inter(
+                              color: AppColors.accent,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              detail,
+                              style: GoogleFonts.inter(
+                                color: AppColors.secondary,
+                                fontSize: 12,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Builds a radio option for selection lists
+  Widget _buildRadioOption({
+    required String title,
+    required String description,
+    String? techNote,
+    required String value,
+    required String groupValue,
+    bool isDisabled = false,
+    required ValueChanged<String?>? onChanged,
+  }) {
+    final isSelected = value == groupValue;
+
+    return Opacity(
+      opacity: isDisabled ? 0.5 : 1.0,
+      child: InkWell(
+        onTap: isDisabled ? null : () => onChanged?.call(value),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.secondary,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected
+                          ? AppColors.primary
+                          : Colors.transparent,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.primaryMildVariant,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.inter(
+                        color: AppColors.secondary,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    if (techNote != null) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppColors.secondary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Text(
+                          techNote,
+                          style: GoogleFonts.inter(
+                            color: AppColors.secondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -359,6 +966,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // App Settings Section
           const SectionHeader(title: 'App Settings'),
           const SizedBox(height: 16),
           HapticsSelector(
@@ -407,10 +1015,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Feature Capabilities Section
-          _buildFeatureCapabilitiesSection(hapticsHelper),
+          // Media & Documents Section (merged from Feature Capabilities, Vision Pipeline, Document Strategy)
+          _buildMediaAndDocumentsSection(hapticsHelper),
           const SizedBox(height: 32),
 
+          // Response Preference Section
           const SectionHeader(title: 'Response Preference'),
           const SizedBox(height: 16),
           ResponsePreferenceSection(
@@ -423,249 +1032,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 32),
 
-          const SectionHeader(title: 'Vision Pipeline'),
-          const SizedBox(height: 8),
-          Text(
-            'Choose how visual content is processed',
-            style: GoogleFonts.inter(color: AppColors.secondary, fontSize: 14),
-          ),
+          // Device Compatibility Section
+          const SectionHeader(title: 'Device Compatibility'),
           const SizedBox(height: 16),
-          VisionOptionTile(
-            title: 'Edge OCR (Recommended)',
-            description:
-                'Works with any Parallax setup. Processes text locally on your device. Best for standard documents and quick extraction.',
-            techNote: 'Uses Google ML Kit',
-            value: 'edge',
-            groupValue: state.visionPipelineMode,
-            onChanged: (val) {
-              if (val == null) return;
-              hapticsHelper.triggerHaptics();
-              controller.setVisionPipelineMode(val);
-            },
-          ),
-          const SizedBox(height: 12),
-          Builder(
-            builder: (context) {
-              final featureFlags = ref.watch(featureFlagsProvider);
-              final multimodalAvailable =
-                  featureFlags.multimodalVision.isAvailable;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  VisionOptionTile(
-                    title: 'Full Multimodal (Experimental)',
-                    description: multimodalAvailable
-                        ? 'Choose this when your Parallax server has vision-capable models and >16GB VRAM. Best for complex visuals that need deep understanding.'
-                        : 'Not available: ${featureFlags.multimodalVision.disabledMessage}',
-                    value: 'multimodal',
-                    groupValue: state.visionPipelineMode,
-                    onChanged: multimodalAvailable
-                        ? (val) {
-                            if (val == null) return;
-                            hapticsHelper.triggerHaptics();
-                            controller.setVisionPipelineMode(val);
-                          }
-                        : null,
-                  ),
-                  if (!multimodalAvailable &&
-                      state.visionPipelineMode == 'multimodal')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.error.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              LucideIcons.alertTriangle,
-                              color: AppColors.error,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Multimodal is selected but not available on your server. Consider switching to Edge OCR.',
-                                style: GoogleFonts.inter(
-                                  color: AppColors.error,
-                                  fontSize: 12,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+          const DeviceRequirementsCard(),
           const SizedBox(height: 32),
 
-          const SectionHeader(title: 'Document Strategy'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(LucideIcons.info, color: AppColors.primary, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Optimize document processing. Enable Smart Context if your Parallax model doesn\'t support documents natively, has limited VRAM/context window, or for OCR-heavy workflows.',
-                    style: GoogleFonts.inter(
-                      color: AppColors.secondary,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SmartContextSwitch(
-            value: state.isSmartContextEnabled,
-            onChanged: (val) {
-              hapticsHelper.triggerHaptics();
-              controller.toggleSmartContext(val);
-            },
-          ),
-          const SizedBox(height: 24),
-          ContextSlider(
-            value: state.maxContextTokens,
-            onChanged: (val) {
-              hapticsHelper.triggerHaptics();
-              controller.setMaxContextTokens(val.toInt());
-            },
-          ),
-          const SizedBox(height: 32),
-
+          // Data & Storage Section
           const SectionHeader(title: 'Data & Storage'),
           const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.secondary.withValues(alpha: 0.1),
-              ),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) => ClearHistoryConfirmationDialog(
-                      onClear: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        try {
-                          // Get current session ID to preserve active chat
-                          final currentSessionId = ref
-                              .read(chatControllerProvider)
-                              .currentSessionId;
-                          await ref
-                              .read(chatArchiveStorageProvider)
-                              .clearAllSessionsExcept(currentSessionId);
-                          // Trigger history screen refresh
-                          ref.read(archiveRefreshProvider.notifier).refresh();
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Chat history cleared',
-                                style: GoogleFonts.inter(
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              backgroundColor: AppColors.surface,
-                            ),
-                          );
-                        } catch (e) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Failed to clear history',
-                                style: GoogleFonts.inter(
-                                  color: AppColors.error,
-                                ),
-                              ),
-                              backgroundColor: AppColors.surface,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          LucideIcons.trash2,
-                          color: AppColors.error,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Clear Chat History',
-                              style: GoogleFonts.inter(
-                                color: AppColors.error,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Delete all archived chat sessions',
-                              style: GoogleFonts.inter(
-                                color: AppColors.secondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        LucideIcons.chevronRight,
-                        color: AppColors.secondary.withValues(alpha: 0.5),
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _buildClearHistoryTile(),
           const SizedBox(height: 32),
 
+          // About Section
           const SectionHeader(title: 'About Parallax Connect'),
           const SizedBox(height: 16),
           const AboutCard(),
@@ -681,6 +1060,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildClearHistoryTile() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.1)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (dialogContext) => ClearHistoryConfirmationDialog(
+                onClear: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    final currentSessionId = ref
+                        .read(chatControllerProvider)
+                        .currentSessionId;
+                    await ref
+                        .read(chatArchiveStorageProvider)
+                        .clearAllSessionsExcept(currentSessionId);
+                    ref.read(archiveRefreshProvider.notifier).refresh();
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Chat history cleared',
+                          style: GoogleFonts.inter(color: AppColors.primary),
+                        ),
+                        backgroundColor: AppColors.surface,
+                      ),
+                    );
+                  } catch (e) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to clear history',
+                          style: GoogleFonts.inter(color: AppColors.error),
+                        ),
+                        backgroundColor: AppColors.surface,
+                      ),
+                    );
+                  }
+                },
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    LucideIcons.trash2,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Clear Chat History',
+                        style: GoogleFonts.inter(
+                          color: AppColors.error,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Delete all archived chat sessions',
+                        style: GoogleFonts.inter(
+                          color: AppColors.secondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  LucideIcons.chevronRight,
+                  color: AppColors.secondary.withValues(alpha: 0.5),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

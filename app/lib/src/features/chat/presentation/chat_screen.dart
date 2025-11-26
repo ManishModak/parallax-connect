@@ -69,12 +69,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: SvgPicture.asset(
-            'assets/icons/drawer.svg',
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(AppColors.secondary, BlendMode.srcIn),
-          ),
+          icon: Icon(LucideIcons.panelLeftOpen, color: AppColors.secondary),
           onPressed: () {
             ref.read(hapticsHelperProvider).triggerHaptics();
             context.push(AppRoutes.history);

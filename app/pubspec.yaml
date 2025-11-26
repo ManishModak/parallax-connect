@@ -60,6 +60,7 @@ dependencies:
   encrypt: ^5.0.3
   uuid: ^4.5.1
   crypto: ^3.0.5
+  device_info_plus: ^11.1.0
   google_mlkit_text_recognition: ^0.15.0
   google_mlkit_object_detection: ^0.15.0
   google_mlkit_image_labeling: ^0.14.1
