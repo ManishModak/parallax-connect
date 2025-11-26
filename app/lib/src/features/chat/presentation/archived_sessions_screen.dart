@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/storage/chat_archive_storage.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/logger.dart';
 import 'chat_controller.dart';
 import 'archived_session_detail_screen.dart';
 
@@ -29,6 +30,7 @@ class _ArchivedSessionsScreenState
   }
 
   void _loadSessions() {
+    logger.d('📋 Loading sessions for History screen...');
     setState(() {
       _isLoading = true;
     });
@@ -38,8 +40,11 @@ class _ArchivedSessionsScreenState
         ? archiveStorage.getArchivedSessions()
         : archiveStorage.searchSessions(_searchQuery);
 
+    logger.d('📋 Found ${sessions.length} archived sessions');
+
     // Include current active chat if it exists
     final currentMessages = ref.read(chatControllerProvider).messages;
+    logger.d('📋 Current active chat has ${currentMessages.length} messages');
 
     if (currentMessages.isNotEmpty) {
       // Create a virtual session for the current active chat
@@ -51,9 +56,17 @@ class _ArchivedSessionsScreenState
         messageCount: currentMessages.length,
       );
 
+      logger.d(
+        '📋 Created virtual current session with ${currentMessages.length} messages',
+      );
+
       // Add current session at the top
       sessions = [currentSession, ...sessions];
+    } else {
+      logger.d('📋 No current active chat to display');
     }
+
+    logger.d('📋 Total sessions to display: ${sessions.length}');
 
     setState(() {
       _sessions = sessions;
