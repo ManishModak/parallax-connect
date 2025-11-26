@@ -17,7 +17,6 @@ import '../../../core/utils/haptics_helper.dart';
 import 'chat_controller.dart';
 import 'widgets/delete_confirmation_dialog.dart';
 import 'widgets/history_item_tile.dart';
-import 'widgets/new_chat_button.dart';
 import 'widgets/rename_dialog.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -264,20 +263,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header with search and close
+            // Custom Header: Search Bar + Close Icon
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 children: [
-                  const SizedBox(width: 8),
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: AppColors.secondary.withValues(alpha: 0.1),
-                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: TextField(
                         controller: _searchController,
@@ -306,18 +301,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           );
                         },
                         style: GoogleFonts.inter(
-                          color: AppColors.secondary,
+                          color: AppColors.primary,
                           fontSize: 14,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search chat history',
                           hintStyle: GoogleFonts.inter(
-                            color: AppColors.secondary.withValues(alpha: 0.5),
+                            color: AppColors.secondary,
                             fontSize: 14,
                           ),
                           prefixIcon: Icon(
                             LucideIcons.search,
-                            color: AppColors.secondary.withValues(alpha: 0.5),
+                            color: AppColors.secondary,
                             size: 20,
                           ),
                           suffixIcon: _searchController.text.isNotEmpty
@@ -341,9 +336,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     : IconButton(
                                         icon: Icon(
                                           LucideIcons.x,
-                                          color: AppColors.secondary.withValues(
-                                            alpha: 0.5,
-                                          ),
+                                          color: AppColors.secondary,
                                           size: 18,
                                         ),
                                         tooltip: 'Clear search',
@@ -370,6 +363,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
                   IconButton(
                     icon: const Icon(LucideIcons.x, color: AppColors.secondary),
                     tooltip: 'Close history',
@@ -382,10 +376,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ),
             ),
 
-            // New Chat Button
-            const NewChatButton(),
-
-            // Chats List
+            // Content
             Expanded(
               child: _isSearching
                   ? Center(
@@ -397,16 +388,59 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           Text(
                             'Searching...',
                             style: GoogleFonts.inter(
-                              color: AppColors.secondary.withValues(alpha: 0.6),
+                              color: AppColors.secondary,
                               fontSize: 14,
                             ),
                           ),
                         ],
                       ),
                     )
-                  : _searchQuery.isEmpty
-                  ? _buildCategorizedList()
-                  : _buildSearchResults(),
+                  : CustomScrollView(
+                      slivers: [
+                        if (_searchQuery.isEmpty)
+                          _buildCategorizedList()
+                        else
+                          _buildSearchResults(),
+                      ],
+                    ),
+            ),
+
+            // New Chat Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    ref.read(hapticsHelperProvider).triggerHaptics();
+                    ref.read(chatControllerProvider.notifier).startNewChat();
+                    context.pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.background,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(LucideIcons.plus, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'New Chat',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
 
             // Footer
@@ -467,43 +501,43 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildCategorizedList() {
     if (_categorizedSessions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              LucideIcons.messageSquare,
-              size: 48,
-              color: AppColors.secondary.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No chat history',
-              style: GoogleFonts.inter(
-                color: AppColors.secondary.withValues(alpha: 0.6),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                LucideIcons.messageSquare,
+                size: 48,
+                color: AppColors.secondary.withValues(alpha: 0.3),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Start a new chat to see it here',
-              style: GoogleFonts.inter(
-                color: AppColors.secondary.withValues(alpha: 0.4),
-                fontSize: 13,
+              const SizedBox(height: 16),
+              Text(
+                'No chat history',
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Start a new chat to see it here',
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     final currentSessionId = ref.read(chatControllerProvider).currentSessionId;
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _categorizedSessions.length,
-      itemBuilder: (context, index) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) {
         final category = _categorizedSessions.keys.elementAt(index);
         final sessions = _categorizedSessions[category]!;
 
@@ -511,100 +545,110 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 4, top: 8, bottom: 12),
+              padding: const EdgeInsets.only(left: 20, top: 8, bottom: 12),
               child: Text(
                 category,
                 style: GoogleFonts.inter(
-                  color: AppColors.secondary.withValues(alpha: 0.7),
-                  fontSize: 11,
+                  color: AppColors.secondary,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
-                  textBaseline: TextBaseline.alphabetic,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
-            ...sessions.map(
-              (session) => HistoryItemTile(
-                title: session.title,
-                time: _formatRelativeTime(session.timestamp),
-                isActive: session.id == currentSessionId,
-                isImportant: session.isImportant,
-                onTap: () {
-                  ref
-                      .read(chatControllerProvider.notifier)
-                      .loadArchivedSession(session.id);
-                  context.pop();
-                },
-                onDelete: () => _handleDelete(session),
-                onRename: () => _handleRename(session),
-                onExport: () => _handleExport(session),
-                onToggleImportant: () => _handleToggleImportant(session),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: sessions
+                    .map(
+                      (session) => HistoryItemTile(
+                        title: session.title,
+                        time: _formatRelativeTime(session.timestamp),
+                        isActive: session.id == currentSessionId,
+                        isImportant: session.isImportant,
+                        onTap: () {
+                          ref
+                              .read(chatControllerProvider.notifier)
+                              .loadArchivedSession(session.id);
+                          context.pop();
+                        },
+                        onDelete: () => _handleDelete(session),
+                        onRename: () => _handleRename(session),
+                        onExport: () => _handleExport(session),
+                        onToggleImportant: () =>
+                            _handleToggleImportant(session),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
             const SizedBox(height: 16),
           ],
         );
-      },
+      }, childCount: _categorizedSessions.length),
     );
   }
 
   Widget _buildSearchResults() {
     if (_sessions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              LucideIcons.searchX,
-              size: 48,
-              color: AppColors.secondary.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No chats found',
-              style: GoogleFonts.inter(
-                color: AppColors.secondary.withValues(alpha: 0.6),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                LucideIcons.searchX,
+                size: 48,
+                color: AppColors.secondary.withValues(alpha: 0.3),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try searching with different keywords',
-              style: GoogleFonts.inter(
-                color: AppColors.secondary.withValues(alpha: 0.4),
-                fontSize: 13,
+              const SizedBox(height: 16),
+              Text(
+                'No chats found',
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Try searching with different keywords',
+                style: GoogleFonts.inter(
+                  color: AppColors.secondary.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     final currentSessionId = ref.read(chatControllerProvider).currentSessionId;
 
-    return ListView.builder(
+    return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _sessions.length,
-      itemBuilder: (context, index) {
-        final session = _sessions[index];
-        return HistoryItemTile(
-          title: session.title,
-          time: _formatRelativeTime(session.timestamp),
-          isActive: session.id == currentSessionId,
-          isImportant: session.isImportant,
-          onTap: () {
-            ref
-                .read(chatControllerProvider.notifier)
-                .loadArchivedSession(session.id);
-            context.pop();
-          },
-          onDelete: () => _handleDelete(session),
-          onRename: () => _handleRename(session),
-          onExport: () => _handleExport(session),
-          onToggleImportant: () => _handleToggleImportant(session),
-        );
-      },
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final session = _sessions[index];
+          return HistoryItemTile(
+            title: session.title,
+            time: _formatRelativeTime(session.timestamp),
+            isActive: session.id == currentSessionId,
+            isImportant: session.isImportant,
+            onTap: () {
+              ref
+                  .read(chatControllerProvider.notifier)
+                  .loadArchivedSession(session.id);
+              context.pop();
+            },
+            onDelete: () => _handleDelete(session),
+            onRename: () => _handleRename(session),
+            onExport: () => _handleExport(session),
+            onToggleImportant: () => _handleToggleImportant(session),
+          );
+        }, childCount: _sessions.length),
+      ),
     );
   }
 }

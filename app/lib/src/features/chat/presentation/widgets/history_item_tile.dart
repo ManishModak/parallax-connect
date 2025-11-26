@@ -52,19 +52,14 @@ class HistoryItemTile extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: isActive
-            ? AppColors.surface
-            : AppColors.surface.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(14),
+        color: isActive ? AppColors.surfaceLight : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
         border: isActive
             ? Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                width: 1.5,
-              )
-            : Border.all(
-                color: AppColors.secondary.withValues(alpha: 0.05),
+                color: AppColors.primary.withValues(alpha: 0.2),
                 width: 1,
-              ),
+              )
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -76,18 +71,19 @@ class HistoryItemTile extends ConsumerWidget {
               context.pop();
             }
           },
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                if (isImportant)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(
-                      LucideIcons.star,
-                      size: 16,
-                      color: Colors.amber,
+                if (isActive)
+                  Container(
+                    width: 4,
+                    height: 4,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
                     ),
                   ),
                 Expanded(
@@ -97,14 +93,11 @@ class HistoryItemTile extends ConsumerWidget {
                       Text(
                         title,
                         style: GoogleFonts.inter(
-                          color: isActive
-                              ? AppColors.primary
-                              : AppColors.secondary,
-                          fontSize: 15,
+                          color: AppColors.primary,
+                          fontSize: 14,
                           fontWeight: isActive
                               ? FontWeight.w600
                               : FontWeight.w500,
-                          letterSpacing: 0.1,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -113,7 +106,7 @@ class HistoryItemTile extends ConsumerWidget {
                       Text(
                         time,
                         style: GoogleFonts.inter(
-                          color: AppColors.secondary.withValues(alpha: 0.6),
+                          color: AppColors.secondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
                         ),
@@ -124,8 +117,8 @@ class HistoryItemTile extends ConsumerWidget {
                 PopupMenuButton<String>(
                   icon: Icon(
                     LucideIcons.moreVertical,
-                    size: 18,
-                    color: AppColors.secondary.withValues(alpha: 0.5),
+                    size: 16,
+                    color: AppColors.secondary,
                   ),
                   color: AppColors.surface,
                   shape: RoundedRectangleBorder(
@@ -136,39 +129,19 @@ class HistoryItemTile extends ConsumerWidget {
                   ),
                   itemBuilder: (context) => [
                     PopupMenuItem(
-                      value: 'important',
-                      child: Row(
-                        children: [
-                          Icon(
-                            isImportant ? LucideIcons.starOff : LucideIcons.star,
-                            size: 16,
-                            color: isImportant ? AppColors.secondary : Colors.amber,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            isImportant ? 'Unmark Important' : 'Mark Important',
-                            style: GoogleFonts.inter(
-                              color: AppColors.secondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
                       value: 'rename',
                       child: Row(
                         children: [
                           Icon(
                             LucideIcons.edit2,
                             size: 16,
-                            color: AppColors.secondary,
+                            color: AppColors.primary,
                           ),
                           const SizedBox(width: 12),
                           Text(
                             'Rename',
                             style: GoogleFonts.inter(
-                              color: AppColors.secondary,
+                              color: AppColors.primary,
                               fontSize: 14,
                             ),
                           ),
@@ -182,13 +155,13 @@ class HistoryItemTile extends ConsumerWidget {
                           Icon(
                             LucideIcons.share,
                             size: 16,
-                            color: AppColors.secondary,
+                            color: AppColors.primary,
                           ),
                           const SizedBox(width: 12),
                           Text(
                             'Export PDF',
                             style: GoogleFonts.inter(
-                              color: AppColors.secondary,
+                              color: AppColors.primary,
                               fontSize: 14,
                             ),
                           ),
@@ -202,13 +175,13 @@ class HistoryItemTile extends ConsumerWidget {
                           Icon(
                             LucideIcons.trash2,
                             size: 16,
-                            color: AppColors.error.withValues(alpha: 0.8),
+                            color: AppColors.error,
                           ),
                           const SizedBox(width: 12),
                           Text(
                             'Delete',
                             style: GoogleFonts.inter(
-                              color: AppColors.error.withValues(alpha: 0.8),
+                              color: AppColors.error,
                               fontSize: 14,
                             ),
                           ),
@@ -217,11 +190,7 @@ class HistoryItemTile extends ConsumerWidget {
                     ),
                   ],
                   onSelected: (value) {
-                    if (value == 'important') {
-                      if (onToggleImportant != null) {
-                        onToggleImportant!();
-                      }
-                    } else if (value == 'delete') {
+                    if (value == 'delete') {
                       if (onDelete != null) {
                         onDelete!();
                       } else {
@@ -241,6 +210,26 @@ class HistoryItemTile extends ConsumerWidget {
                       }
                     }
                   },
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    isImportant ? LucideIcons.star : LucideIcons.star,
+                    size: 18,
+                    color: isImportant
+                        ? Colors.amber
+                        : AppColors.secondary.withValues(alpha: 0.5),
+                    fill: isImportant ? 1.0 : 0.0,
+                  ),
+                  onPressed: () {
+                    ref.read(hapticsHelperProvider).triggerHaptics();
+                    onToggleImportant?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  style: IconButton.styleFrom(
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
               ],
             ),

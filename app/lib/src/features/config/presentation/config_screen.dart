@@ -248,7 +248,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   fontSize: 14,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Toggle
               ConnectionModeToggle(
@@ -256,7 +256,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                 onModeChanged: (value) => setState(() => _isLocal = value),
                 onHapticFeedback: hapticsHelper.triggerHaptics,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               // Input Field
               Row(
@@ -349,7 +349,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               Text(
                 'Password (optional)',
@@ -408,8 +408,6 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                 onOpenGuide: () => _openSetupGuide(hapticsHelper),
                 onCopyLink: () => _copySetupLink(hapticsHelper),
               ),
-
-              const SizedBox(height: 12),
 
               const SizedBox(height: 24),
 

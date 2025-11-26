@@ -16,75 +16,36 @@ class HapticsSelector extends StatelessWidget {
     this.onHapticFeedback,
   });
 
-  String _getDescription() {
-    switch (currentLevel) {
-      case 'none':
-        return 'No haptic feedback';
-      case 'min':
-        return 'Light feedback on button taps';
-      case 'max':
-        return 'Button taps + typing feel during streaming';
-      default:
-        return '';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.secondary.withValues(alpha: 0.1),
-            ),
-          ),
-          child: Row(
-            children: [
-              _HapticOption(
-                label: 'None',
-                value: 'none',
-                icon: LucideIcons.smartphone,
-                isSelected: currentLevel == 'none',
-                onTap: _handleSelection,
-              ),
-              _divider(),
-              _HapticOption(
-                label: 'Min',
-                value: 'min',
-                icon: LucideIcons.vibrate,
-                isSelected: currentLevel == 'min',
-                onTap: _handleSelection,
-              ),
-              _divider(),
-              _HapticOption(
-                label: 'Max',
-                value: 'max',
-                icon: LucideIcons.waves,
-                isSelected: currentLevel == 'max',
-                onTap: _handleSelection,
-              ),
-            ],
-          ),
+        _HapticTile(
+          label: 'None',
+          value: 'none',
+          icon: LucideIcons.smartphone,
+          isSelected: currentLevel == 'none',
+          onTap: _handleSelection,
         ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            _getDescription(),
-            style: GoogleFonts.inter(color: AppColors.secondary, fontSize: 12),
-          ),
+        const SizedBox(width: 12),
+        _HapticTile(
+          label: 'Min',
+          value: 'min',
+          icon: LucideIcons.vibrate,
+          isSelected: currentLevel == 'min',
+          onTap: _handleSelection,
+        ),
+        const SizedBox(width: 12),
+        _HapticTile(
+          label: 'Max',
+          value: 'max',
+          icon: LucideIcons.waves,
+          isSelected: currentLevel == 'max',
+          onTap: _handleSelection,
         ),
       ],
     );
   }
-
-  Widget _divider() =>
-      Container(width: 1, color: AppColors.secondary.withValues(alpha: 0.1));
 
   void _handleSelection(String value) {
     if (value == currentLevel) return;
@@ -93,14 +54,14 @@ class HapticsSelector extends StatelessWidget {
   }
 }
 
-class _HapticOption extends StatelessWidget {
+class _HapticTile extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final bool isSelected;
   final ValueChanged<String> onTap;
 
-  const _HapticOption({
+  const _HapticTile({
     required this.label,
     required this.value,
     required this.icon,
@@ -111,30 +72,45 @@ class _HapticOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(value),
-        child: Container(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.transparent,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected ? AppColors.primary : AppColors.secondary,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onTap(value),
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.secondary.withValues(alpha: 0.1),
+                width: isSelected ? 1.5 : 1,
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.inter(
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
                   color: isSelected ? AppColors.primary : AppColors.secondary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: isSelected ? AppColors.primary : AppColors.secondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

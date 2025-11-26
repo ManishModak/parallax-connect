@@ -89,14 +89,14 @@ class StreamingSettingsSection extends StatelessWidget {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: (value && isEnabled)
-                        ? AppColors.accent.withValues(alpha: 0.1)
+                        ? AppColors.primary.withValues(alpha: 0.1)
                         : AppColors.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
                     color: (value && isEnabled)
-                        ? AppColors.accent
+                        ? AppColors.primary
                         : AppColors.secondary,
                     size: 20,
                   ),
@@ -141,16 +141,17 @@ class StreamingSettingsSection extends StatelessWidget {
                 Switch(
                   value: value,
                   onChanged: onChanged,
-                  activeTrackColor: AppColors.accent.withValues(alpha: 0.5),
+                  activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
+                  activeColor: AppColors.primary,
                   thumbColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
-                      return AppColors.accent;
+                      return AppColors.primary;
                     }
                     return AppColors.secondary;
                   }),
                   trackColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
-                      return AppColors.accent.withValues(alpha: 0.5);
+                      return AppColors.primary.withValues(alpha: 0.3);
                     }
                     return AppColors.secondary.withValues(alpha: 0.2);
                   }),

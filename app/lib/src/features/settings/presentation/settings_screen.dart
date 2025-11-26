@@ -219,7 +219,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
         // Info banner
         Container(
           padding: const EdgeInsets.all(12),
@@ -966,8 +966,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // App Settings Section
-          const SectionHeader(title: 'App Settings'),
+          // Haptics Settings Section
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'HAPTICS SETTINGS',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' - Button taps + typing feel during streaming',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           HapticsSelector(
             currentLevel: state.hapticsLevel,
@@ -977,32 +1002,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 32),
 
           // Streaming Settings Section
-          const SectionHeader(title: 'Response Streaming'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(LucideIcons.zap, color: AppColors.accent, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Streaming shows responses in real-time as they\'re generated, improving perceived speed.',
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'RESPONSE STREAMING',
                     style: GoogleFonts.inter(
                       color: AppColors.secondary,
                       fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        ' - Streaming shows responses in real-time as they\'re generated, improving perceived speed.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 13,
                       height: 1.4,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -1020,7 +1044,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 32),
 
           // Response Preference Section
-          const SectionHeader(title: 'Response Preference'),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'RESPONSE PREFERENCE',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        ' - Customize how the AI behaves and responds to you.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           ResponsePreferenceSection(
             systemPromptController: _systemPromptController,
@@ -1033,19 +1083,95 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 32),
 
           // Device Compatibility Section
-          const SectionHeader(title: 'Device Compatibility'),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'DEVICE COMPATIBILITY',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        ' - Check if your device meets the requirements for advanced features.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           const DeviceRequirementsCard(),
           const SizedBox(height: 32),
 
           // Data & Storage Section
-          const SectionHeader(title: 'Data & Storage'),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'DATA & STORAGE',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' - Manage your chat history and stored data.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           _buildClearHistoryTile(),
           const SizedBox(height: 32),
 
           // About Section
-          const SectionHeader(title: 'About Parallax Connect'),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'ABOUT PARALLAX CONNECT',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' - Learn more about the app and its philosophy.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.secondary,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           const AboutCard(),
           const SizedBox(height: 16),

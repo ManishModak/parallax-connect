@@ -27,31 +27,61 @@ class ResponsePreferenceSection extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.secondary.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: systemPromptController,
-            maxLines: 4,
+          Text(
+            'System Prompt',
             style: GoogleFonts.inter(
               color: AppColors.primary,
               fontSize: 14,
-              height: 1.5,
+              fontWeight: FontWeight.w600,
             ),
-            decoration: InputDecoration(
-              hintText: 'Enter system instructions...',
-              hintStyle: GoogleFonts.inter(
-                color: AppColors.secondary.withValues(alpha: 0.5),
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-            onChanged: onPromptChanged,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.secondary.withValues(alpha: 0.1),
+              ),
+            ),
+            child: TextField(
+              controller: systemPromptController,
+              maxLines: 4,
+              style: GoogleFonts.inter(
+                color: AppColors.primary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    'Enter custom instructions for how the AI should behave...',
+                hintStyle: GoogleFonts.inter(
+                  color: AppColors.secondary.withValues(alpha: 0.5),
+                  fontSize: 13,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: onPromptChanged,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Quick Presets',
+            style: GoogleFonts.inter(
+              color: AppColors.primary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -61,9 +91,11 @@ class ResponsePreferenceSection extends StatelessWidget {
                 label: Text(
                   preset,
                   style: GoogleFonts.inter(
-                    color: isSelected ? AppColors.background : AppColors.primary,
+                    color: isSelected
+                        ? AppColors.background
+                        : AppColors.primary,
                     fontWeight: FontWeight.w500,
-                    fontSize: 12,
+                    fontSize: 13,
                   ),
                 ),
                 selected: isSelected,
@@ -82,7 +114,7 @@ class ResponsePreferenceSection extends StatelessWidget {
                         : AppColors.secondary.withValues(alpha: 0.2),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               );
             }).toList(),
           ),
@@ -91,4 +123,3 @@ class ResponsePreferenceSection extends StatelessWidget {
     );
   }
 }
-
