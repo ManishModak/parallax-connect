@@ -165,9 +165,16 @@ class ChatController extends Notifier<ChatState> {
         } else {
           // Text-only: use chat generation
           final systemPrompt = _settingsStorage.getSystemPrompt();
+
+          // Get conversation history (exclude current message - it's passed as prompt)
+          final history = state.messages.length > 1
+              ? state.messages.sublist(0, state.messages.length - 1)
+              : <ChatMessage>[];
+
           response = await _repository.generateText(
             contextText,
             systemPrompt: systemPrompt,
+            history: history,
           );
         }
       }

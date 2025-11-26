@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/networking/dio_provider.dart';
 import '../../../core/storage/config_storage.dart';
 import '../../../core/utils/logger.dart';
+import 'models/chat_message.dart';
 
 class ChatRepository {
   final Dio _dio;
@@ -41,14 +42,38 @@ class ChatRepository {
     }
   }
 
-  Future<String> generateText(String prompt, {String? systemPrompt}) async {
+  /// Generate text response from AI
+  ///
+  /// [prompt] - The current user message
+  /// [systemPrompt] - Optional system instructions
+  /// [history] - Optional conversation history for multi-turn chat
+  Future<String> generateText(
+    String prompt, {
+    String? systemPrompt,
+    List<ChatMessage>? history,
+  }) async {
     final baseUrl = _configStorage.getBaseUrl();
     if (baseUrl == null) throw Exception('No Base URL configured');
 
     try {
-      final data = {'prompt': prompt};
+      final data = <String, dynamic>{'prompt': prompt};
+
       if (systemPrompt != null && systemPrompt.isNotEmpty) {
         data['system_prompt'] = systemPrompt;
+      }
+
+      // Include conversation history for multi-turn chat
+      if (history != null && history.isNotEmpty) {
+        data['messages'] = [
+          ...history.map(
+            (m) => {
+              'role': m.isUser ? 'user' : 'assistant',
+              'content': m.text,
+            },
+          ),
+          // Add current prompt as the last user message
+          {'role': 'user', 'content': prompt},
+        ];
       }
 
       final response = await _dio.post(

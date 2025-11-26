@@ -100,8 +100,12 @@ async def startup_event():
         logger.info(f"Testing connection to Parallax at {PARALLAX_SERVICE_URL}...")
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.get("http://localhost:3001/health", timeout=5.0)
-                logger.info("✅ Parallax connection successful")
+                # Use /model/list endpoint (no /health endpoint exists in Parallax)
+                resp = await client.get("http://localhost:3001/model/list", timeout=5.0)
+                if resp.status_code == 200:
+                    logger.info("✅ Parallax connection successful")
+                else:
+                    logger.warning(f"⚠️ Parallax returned status {resp.status_code}")
         except Exception as e:
             logger.warning(f"⚠️ Cannot reach Parallax: {e}")
             logger.warning("Make sure Parallax is running: parallax run")
@@ -132,13 +136,13 @@ async def startup_event():
     print("=" * 50)
 
     if public_url:
-        print(f"\n🌍 CLOUD MODE (Recommended)")
+        print("\n🌍 CLOUD MODE (Recommended)")
         print(f"URL: {public_url}")
         print("Scan this QR code to connect:\n")
         print_qr(public_url)
         print("\n" + "-" * 50)
 
-    print(f"\n🏠 LOCAL MODE (Same Wi-Fi only)")
+    print("\n🏠 LOCAL MODE (Same Wi-Fi only)")
     print(f"URL: {local_url}")
     print("Scan this QR code to connect:\n")
     print_qr(local_url)
@@ -164,125 +168,103 @@ class ChatRequest(BaseModel):
 
     These parameters control how the AI generates responses, affecting
     creativity, randomness, repetition, and output format.
+
+    PARALLAX SUPPORT STATUS:
+    ========================
+    Currently WORKING in Parallax executor:
+      - max_tokens, temperature, top_p, top_k
+
+    NOT YET IMPLEMENTED in Parallax executor (defined but ignored):
+      - repetition_penalty, presence_penalty, frequency_penalty, stop
+
+    These unsupported params are kept for future compatibility when Parallax
+    adds support. See: parallax/server/executor.py lines 867-878
     """
 
-    # === REQUIRED ===
     # === REQUIRED ===
     prompt: str  # The user's message/question
     system_prompt: Optional[str] = None  # Optional system instructions
 
-    # === BASIC PARAMETERS ===
+    # === CONVERSATION HISTORY (FOR MULTI-TURN CHAT) ===
+    messages: Optional[List[dict]] = None
+    """
+    Conversation history for multi-turn chat continuation.
+    Format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+    - If provided, enables context-aware responses using previous messages
+    - If None/empty, falls back to single prompt mode (backwards compatible)
+    """
+
+    # === BASIC PARAMETERS (SUPPORTED) ===
     max_tokens: int = 512
     """
     Maximum number of tokens (words/pieces) to generate.
+    STATUS: SUPPORTED by Parallax
     - Default: 512
     - Range: 1 to model's max (usually 2048-4096)
-    - Use cases:
-      • Short answers: 50-100
-      • Normal chat: 256-512
-      • Long explanations: 1024-2048
     """
 
-    # === CREATIVITY CONTROLS ===
+    # === CREATIVITY CONTROLS (SUPPORTED) ===
     temperature: float = 0.7
     """
     Controls randomness/creativity in responses.
+    STATUS: SUPPORTED by Parallax
     - Default: 0.7 (balanced)
     - Range: 0.0 to 2.0
-    - How to use:
-      • 0.0-0.3: Very focused, deterministic (factual Q&A, code)
-      • 0.4-0.7: Balanced (normal conversation)
-      • 0.8-1.2: Creative (brainstorming, stories)
-      • 1.3-2.0: Very random (experimental, unusual ideas)
-    - Note: 0.0 becomes greedy sampling (always picks most likely token)
+    - 0.0 becomes greedy sampling (top_k=1)
     """
 
     top_p: float = 0.9
     """
     Nucleus sampling - considers only top tokens whose probabilities sum to this value.
+    STATUS: SUPPORTED by Parallax
     - Default: 0.9
     - Range: 0.0 to 1.0
-    - How to use:
-      • 0.5-0.7: More focused, less variety
-      • 0.9: Balanced (recommended)
-      • 0.95-1.0: Maximum variety
-    - Works with temperature to control randomness
     """
 
     top_k: int = -1
     """
     Limits sampling to the top K most likely tokens.
+    STATUS: SUPPORTED by Parallax
     - Default: -1 (disabled)
     - Range: -1 (off) or 1 to 100+
-    - How to use:
-      • -1: Disabled, use top_p instead
-      • 10-20: Very focused
-      • 40-50: Balanced
-      • 80-100: More variety
-    - Can be used together with top_p and temperature
     """
 
-    # === REPETITION CONTROLS ===
+    # === REPETITION CONTROLS (NOT YET SUPPORTED) ===
     repetition_penalty: float = 1.0
     """
     Penalizes tokens that have already appeared.
+    STATUS: NOT YET SUPPORTED - Parallax executor does not parse this parameter
     - Default: 1.0 (no penalty)
     - Range: 0.0 to 2.0
-    - How to use:
-      • 1.0: No penalty
-      • 1.05-1.15: Slight reduction in repetition (recommended)
-      • 1.2-1.5: Strong penalty (use when AI repeats too much)
-      • >1.5: Very strong (may produce nonsense)
-    - Helps reduce repetitive phrases
+    - Kept for future compatibility
     """
 
     presence_penalty: float = 0.0
     """
     Penalizes tokens based on whether they appear in the text.
+    STATUS: NOT YET SUPPORTED - Parallax executor does not parse this parameter
     - Default: 0.0
     - Range: -2.0 to 2.0
-    - How to use:
-      • Positive (0.1-1.0): Encourages new topics/ideas
-      • 0.0: Neutral
-      • Negative (-0.5 to -1.0): Encourages staying on topic
-    - Good for encouraging topic diversity
+    - Kept for future compatibility
     """
 
     frequency_penalty: float = 0.0
     """
     Penalizes tokens based on how often they appear.
+    STATUS: NOT YET SUPPORTED - Parallax executor does not parse this parameter
     - Default: 0.0
     - Range: -2.0 to 2.0
-    - How to use:
-      • Positive (0.1-1.0): Reduces word repetition
-      • 0.0: Neutral
-      • Negative: Allows more repetition
-    - Different from repetition_penalty (counts frequency, not just presence)
+    - Kept for future compatibility
     """
 
-    # === OUTPUT CONTROLS ===
+    # === OUTPUT CONTROLS (NOT YET SUPPORTED) ===
     stop: List[str] = []
     """
     List of strings where generation should stop.
+    STATUS: NOT YET SUPPORTED - Parallax executor does not parse this parameter
     - Default: [] (empty, use model's default stop tokens)
-    - Examples:
-      • ["###", "---"]: Stop at these markers
-      • ["\n\n", "User:"]: Stop at double newline or "User:"
-      • ["```"]: Stop at code block end
-    - Useful for:
-      • Structured output (stop at section markers)
-      • Turn-based conversation (stop at user prompt)
-      • Limiting response format
+    - Kept for future compatibility
     """
-
-    # === ADVANCED (Future) ===
-    # json_schema: Optional[str] = None
-    # """
-    # JSON schema to force structured output.
-    # - Use when you need JSON responses
-    # - Ensures AI returns valid JSON matching the schema
-    # - Example: '{"type": "object", "properties": {"answer": {"type": "string"}}}'
-    # """
 
 
 @app.get("/status", dependencies=[Depends(check_password)])
@@ -297,9 +279,15 @@ async def status_endpoint():
     if SERVER_MODE == "PROXY":
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.get("http://localhost:3001/health", timeout=5.0)
-                status["parallax"] = "connected"
-                logger.info("✅ Parallax status check: connected")
+                # Use /model/list endpoint (no /health endpoint exists in Parallax)
+                resp = await client.get("http://localhost:3001/model/list", timeout=5.0)
+                if resp.status_code == 200:
+                    status["parallax"] = "connected"
+                    logger.info("✅ Parallax status check: connected")
+                else:
+                    status["parallax"] = "error"
+                    status["parallax_error"] = f"Status {resp.status_code}"
+                    logger.warning(f"⚠️ Parallax returned status {resp.status_code}")
         except Exception as e:
             status["parallax"] = "disconnected"
             status["parallax_error"] = str(e)
@@ -328,29 +316,47 @@ async def chat_endpoint(request: ChatRequest):
             )
 
             async with httpx.AsyncClient() as client:
-                # Construct OpenAI-compatible payload with all parameters
-                messages = []
-                if request.system_prompt:
-                    messages.append(
-                        {"role": "system", "content": request.system_prompt}
+                # Build messages array for Parallax
+                # Supports both multi-turn (with history) and single-turn modes
+                if request.messages:
+                    # Multi-turn mode: use provided conversation history
+                    messages = list(request.messages)
+                    # Prepend system prompt if provided
+                    if request.system_prompt:
+                        messages.insert(
+                            0, {"role": "system", "content": request.system_prompt}
+                        )
+                    logger.info(
+                        f"📜 [{request_id}] Using conversation history ({len(messages)} messages)"
                     )
-                messages.append({"role": "user", "content": request.prompt})
+                else:
+                    # Single-turn mode (backwards compatible)
+                    messages = []
+                    if request.system_prompt:
+                        messages.append(
+                            {"role": "system", "content": request.system_prompt}
+                        )
+                    messages.append({"role": "user", "content": request.prompt})
 
+                # Parallax expects sampling params nested inside "sampling_params" object
+                # Currently supported by Parallax executor: temperature, top_p, top_k
+                # (repetition_penalty, presence_penalty, frequency_penalty, stop are TODO in Parallax)
                 payload = {
                     "model": "default",
                     "messages": messages,
                     "stream": False,
-                    # Token limit
                     "max_tokens": request.max_tokens,
-                    # Sampling parameters for creativity control
-                    "temperature": request.temperature,
-                    "top_p": request.top_p,
-                    "top_k": request.top_k,
-                    # Repetition control
-                    "repetition_penalty": request.repetition_penalty,
-                    "presence_penalty": request.presence_penalty,
-                    "frequency_penalty": request.frequency_penalty,
-                    # Stop sequences
+                    "sampling_params": {
+                        "temperature": request.temperature,
+                        "top_p": request.top_p,
+                        "top_k": request.top_k,
+                        # Below params are defined in Parallax but not yet parsed by executor
+                        # Keeping them here for future compatibility when Parallax adds support
+                        "repetition_penalty": request.repetition_penalty,
+                        "presence_penalty": request.presence_penalty,
+                        "frequency_penalty": request.frequency_penalty,
+                    },
+                    # Stop sequences (not yet supported by Parallax executor)
                     "stop": request.stop if request.stop else None,
                 }
                 logger.debug(f"📦 [{request_id}] Payload: {payload}")
